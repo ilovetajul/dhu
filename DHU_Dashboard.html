@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DHU Quality Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#060D1A;--surface:#0C1628;--card:#0F1E35;--border:#1A2E4A;--border2:#243650;
+  --accent:#00D4FF;--accent2:#0099CC;--green:#00E676;--red:#FF4444;
+  --orange:#FF9500;--yellow:#FFD600;--purple:#B388FF;
+  --text:#E8F4FF;--muted:#5A7A9A;--muted2:#3A5A7A;
+  --mono:'JetBrains Mono',monospace;--body:'Outfit',sans-serif;--display:'Bebas Neue',sans-serif;
+}
+html{scroll-behavior:smooth}
+body{font-family:var(--body);background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,212,255,.012) 2px,rgba(0,212,255,.012) 4px);pointer-events:none;z-index:9999}
+
+/* TOPBAR */
+.topbar{position:sticky;top:0;z-index:100;background:rgba(6,13,26,.95);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);padding:0 20px;display:flex;align-items:center;justify-content:space-between;height:56px;gap:10px}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-mark{width:34px;height:34px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:grid;place-items:center;font-family:var(--display);font-size:17px;color:var(--bg);flex-shrink:0}
+.logo-text{font-family:var(--display);font-size:20px;letter-spacing:.06em}
+.logo-sub{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:.1em}
+.topbar-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.live-badge{display:flex;align-items:center;gap:5px;background:rgba(0,230,118,.1);border:1px solid rgba(0,230,118,.3);color:var(--green);font-family:var(--mono);font-size:10px;padding:4px 10px;border-radius:100px}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 1.4s infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}
+.last-upd{font-family:var(--mono);font-size:10px;color:var(--muted)}
+.btn-refresh{background:var(--border);border:1px solid var(--border2);color:var(--accent);font-family:var(--mono);font-size:10px;padding:5px 12px;border-radius:7px;cursor:pointer;transition:all .2s}
+.btn-refresh:hover{background:var(--accent);color:var(--bg)}
+
+/* HERO */
+.hero{background:var(--bg);border-bottom:1px solid var(--border);padding:28px 20px 22px;position:relative;overflow:hidden}
+.hero-grid{position:absolute;inset:0;background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);background-size:40px 40px;opacity:.25}
+.hero-glow{position:absolute;top:-80px;right:-80px;width:360px;height:360px;border-radius:50%;background:radial-gradient(circle,rgba(0,212,255,.07) 0%,transparent 70%)}
+.hero-inner{position:relative;z-index:1;max-width:1400px;margin:0 auto}
+.hero-title{font-family:var(--display);font-size:clamp(28px,4.5vw,52px);line-height:1;letter-spacing:.04em}
+.hero-title span{color:var(--accent)}
+.hero-meta{font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:5px;letter-spacing:.08em}
+.hero-kpis{display:flex;gap:28px;flex-wrap:wrap;margin-top:20px}
+.hkpi{text-align:center}
+.hkpi-num{font-family:var(--display);font-size:26px;color:var(--accent)}
+.hkpi-lbl{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:.07em}
+
+/* FILTER BAR */
+.fbar{background:var(--surface);border-bottom:1px solid var(--border);padding:10px 20px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.flbl{font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:.08em;margin-right:2px}
+select{background:var(--card);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:11px;padding:6px 28px 6px 10px;border-radius:7px;cursor:pointer;outline:none;transition:border-color .2s;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 20 20' fill='%235A7A9A'%3E%3Cpath d='M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center}
+select:focus,select:hover{border-color:var(--accent)}
+.fdivider{width:1px;height:26px;background:var(--border);margin:0 2px}
+.btn-clear{background:transparent;border:1px solid var(--border2);color:var(--muted);font-family:var(--mono);font-size:10px;padding:6px 12px;border-radius:7px;cursor:pointer;transition:all .2s}
+.btn-clear:hover{border-color:var(--red);color:var(--red)}
+
+/* MAIN */
+.main{max-width:1400px;margin:0 auto;padding:20px 20px 80px}
+
+/* KPI STRIP */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:22px}
+.kpi{background:var(--card);border:1px solid var(--border);border-radius:13px;padding:16px 14px;position:relative;overflow:hidden;transition:transform .2s,border-color .2s}
+.kpi:hover{transform:translateY(-2px);border-color:var(--border2)}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.kpi.c-a::before{background:var(--accent)}.kpi.c-g::before{background:var(--green)}
+.kpi.c-r::before{background:var(--red)}.kpi.c-o::before{background:var(--orange)}
+.kpi.c-y::before{background:var(--yellow)}.kpi.c-p::before{background:var(--purple)}
+.kpi-lbl{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:7px}
+.kpi-val{font-family:var(--display);font-size:32px;line-height:1}
+.kpi-val.c-a{color:var(--accent)}.kpi-val.c-g{color:var(--green)}.kpi-val.c-r{color:var(--red)}
+.kpi-val.c-o{color:var(--orange)}.kpi-val.c-y{color:var(--yellow)}.kpi-val.c-p{color:var(--purple)}
+.kpi-sub{font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:3px}
+.kpi-badge{position:absolute;top:14px;right:12px;font-family:var(--mono);font-size:10px}
+
+/* SECTION */
+.sec-head{display:flex;align-items:center;justify-content:space-between;margin:28px 0 12px;gap:10px}
+.sec-title{font-family:var(--display);font-size:20px;letter-spacing:.06em}
+.btn-pdf{display:flex;align-items:center;gap:6px;background:rgba(0,212,255,.08);border:1px solid rgba(0,212,255,.22);color:var(--accent);font-family:var(--mono);font-size:10px;padding:6px 12px;border-radius:7px;cursor:pointer;transition:all .2s;white-space:nowrap}
+.btn-pdf:hover{background:rgba(0,212,255,.18);border-color:var(--accent)}
+.btn-pdf svg{width:12px;height:12px}
+
+/* CHART GRIDS */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.g1{display:grid;grid-template-columns:1fr;gap:14px}
+
+/* CHART CARD */
+.cc{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+.cc-head{padding:14px 18px 10px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)}
+.cc-head h3{font-family:var(--display);font-size:15px;letter-spacing:.05em}
+.mtag{font-family:var(--mono);font-size:9px;color:var(--muted);background:var(--border);padding:2px 7px;border-radius:4px}
+.cc-body{padding:18px;position:relative}
+.cc-body canvas{max-height:260px}
+
+/* PERFORMANCE TABLE */
+.ptable{width:100%;border-collapse:collapse}
+.ptable th{font-family:var(--mono);font-size:9px;letter-spacing:.1em;color:var(--muted);text-align:left;padding:9px 12px;border-bottom:1px solid var(--border);text-transform:uppercase;white-space:nowrap}
+.ptable td{padding:10px 12px;font-size:12px;border-bottom:1px solid rgba(26,46,74,.4);vertical-align:middle;white-space:nowrap}
+.ptable tr:last-child td{border-bottom:none}
+.ptable tr:hover td{background:rgba(0,212,255,.025)}
+.rnk{width:22px;height:22px;border-radius:5px;display:inline-grid;place-items:center;font-family:var(--mono);font-size:10px;font-weight:600}
+.r1{background:rgba(255,214,0,.15);color:var(--yellow)}.r2{background:rgba(180,180,180,.1);color:#B0B0B0}
+.r3{background:rgba(205,127,50,.1);color:#CD7F32}.rn{background:var(--border);color:var(--muted)}
+.pbar-wrap{display:flex;align-items:center;gap:8px;min-width:120px}
+.pbar-bg{flex:1;height:5px;border-radius:3px;background:var(--border);overflow:hidden}
+.pbar-fill{height:100%;border-radius:3px;transition:width .6s ease}
+.gbadge{font-family:var(--mono);font-size:10px;font-weight:600;padding:2px 8px;border-radius:5px}
+.gex{background:rgba(0,230,118,.12);color:var(--green)}.ggd{background:rgba(255,214,0,.12);color:var(--yellow)}
+.gav{background:rgba(255,149,0,.12);color:var(--orange)}.gpr{background:rgba(255,68,68,.12);color:var(--red)}
+
+/* ROLE TABS */
+.rtabs{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:12px}
+.rtab{background:var(--card);border:1px solid var(--border);color:var(--muted);font-family:var(--mono);font-size:10px;padding:6px 14px;border-radius:7px;cursor:pointer;transition:all .2s}
+.rtab.on,.rtab:hover{background:rgba(0,212,255,.1);border-color:var(--accent);color:var(--accent)}
+
+/* HEATMAP */
+.hm-wrap{padding:14px;overflow-x:auto}
+.hm-inner{min-width:420px}
+.hm-cell{border-radius:4px;height:30px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:9px;font-weight:600;cursor:pointer;transition:transform .15s;position:relative}
+.hm-cell:hover{transform:scale(1.08);z-index:2}
+.hm-lbl{font-family:var(--mono);font-size:9px;color:var(--muted);text-align:center}
+
+/* ALERTS */
+.alerts{display:flex;flex-direction:column;gap:7px}
+.alert{display:flex;align-items:center;gap:10px;background:rgba(255,68,68,.06);border:1px solid rgba(255,68,68,.2);border-radius:9px;padding:11px 14px}
+.alert.warn{background:rgba(255,149,0,.06);border-color:rgba(255,149,0,.2)}
+.alert-ico{font-size:16px;flex-shrink:0}
+.alert-txt{flex:1}.alert-txt strong{font-size:12px;display:block;margin-bottom:1px}
+.alert-txt span{font-family:var(--mono);font-size:10px;color:var(--muted)}
+.no-alert{background:rgba(0,230,118,.06);border:1px solid rgba(0,230,118,.2);border-radius:9px;padding:16px 18px;font-family:var(--mono);font-size:12px;color:var(--green)}
+
+/* LOADING */
+.loader{position:fixed;inset:0;z-index:500;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;transition:opacity .4s}
+.loader.off{opacity:0;pointer-events:none}
+.spin{width:50px;height:50px;border-radius:50%;border:3px solid var(--border);border-top-color:var(--accent);animation:rot .8s linear infinite}
+@keyframes rot{to{transform:rotate(360deg)}}
+.load-txt{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.1em}
+
+/* FADE IN */
+.fi{opacity:0;transform:translateY(14px);animation:fdin .5s ease forwards}
+@keyframes fdin{to{opacity:1;transform:translateY(0)}}
+.fi:nth-child(1){animation-delay:.05s}.fi:nth-child(2){animation-delay:.1s}
+.fi:nth-child(3){animation-delay:.15s}.fi:nth-child(4){animation-delay:.2s}
+.fi:nth-child(5){animation-delay:.25s}.fi:nth-child(6){animation-delay:.3s}
+
+/* FOOTER */
+.footer{border-top:1px solid var(--border);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px}
+.ftxt{font-family:var(--mono);font-size:10px;color:var(--muted)}
+
+/* RESPONSIVE */
+@media(max-width:900px){.g2,.g3{grid-template-columns:1fr}.kpi-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:600px){.topbar{padding:0 12px}.main{padding:14px 12px 60px}.fbar{padding:8px 12px}.logo-sub,.last-upd{display:none}}
+
+/* DEMO BADGE */
+.demo-banner{background:rgba(255,149,0,.1);border-bottom:1px solid rgba(255,149,0,.3);padding:8px 20px;text-align:center;font-family:var(--mono);font-size:11px;color:var(--orange)}
+.demo-banner a{color:var(--accent);text-decoration:underline;cursor:pointer}
+</style>
+</head>
+<body>
+
+<!-- LOADER -->
+<div class="loader" id="ldr">
+  <div class="spin"></div>
+  <div class="load-txt">LOADING DASHBOARD DATA...</div>
+</div>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="logo">
+    <div class="logo-mark">D</div>
+    <div>
+      <div class="logo-text">DHU DASHBOARD</div>
+      <div class="logo-sub">QUALITY MANAGEMENT SYSTEM</div>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <div class="live-badge"><div class="live-dot"></div>LIVE</div>
+    <div class="last-upd" id="lastUpd">—</div>
+    <button class="btn-refresh" onclick="loadAll()">↻ REFRESH</button>
+  </div>
+</div>
+
+<!-- DEMO BANNER (hidden when real sheet connected) -->
+<div class="demo-banner" id="demoBanner" style="display:none">
+  ⚠ DEMO MODE — Real data not connected.
+  <a onclick="showConfig()">Click here to connect your Google Sheet</a>
+</div>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-grid"></div>
+  <div class="hero-glow"></div>
+  <div class="hero-inner">
+    <div class="hero-title">REAL-TIME <span>QUALITY</span> ANALYTICS</div>
+    <div class="hero-meta">7 UNITS · SEWING → FINISHING · HOURLY TRACKING · AppSheet → Google Sheet</div>
+    <div class="hero-kpis">
+      <div class="hkpi"><div class="hkpi-num" id="hUnits">7</div><div class="hkpi-lbl">UNITS</div></div>
+      <div class="hkpi"><div class="hkpi-num" id="hLines">—</div><div class="hkpi-lbl">LINES</div></div>
+      <div class="hkpi"><div class="hkpi-num" id="hStaff">—</div><div class="hkpi-lbl">STAFF</div></div>
+      <div class="hkpi"><div class="hkpi-num" id="hRows">—</div><div class="hkpi-lbl">DATA ROWS</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- FILTER BAR -->
+<div class="fbar">
+  <span class="flbl">FILTER:</span>
+  <select id="fUnit" onchange="applyF()">
+    <option value="">All Units</option>
+    <option>1</option><option>2</option><option>3</option><option>4</option>
+    <option>5</option><option>6</option><option>7</option>
+  </select>
+  <select id="fLine" onchange="applyF()"><option value="">All Lines</option></select>
+  <select id="fAO"   onchange="applyF()"><option value="">All AO</option></select>
+  <select id="fRole" onchange="applyF()">
+    <option value="">All Roles</option>
+    <option>Line Quality</option><option>QI</option>
+    <option>Controller</option><option>Floor IC</option>
+  </select>
+  <select id="fDate" onchange="applyF()"><option value="">All Dates</option></select>
+  <div class="fdivider"></div>
+  <button class="btn-clear" onclick="clearF()">✕ Clear</button>
+</div>
+
+<!-- MAIN CONTENT -->
+<div class="main">
+
+  <!-- KPI STRIP -->
+  <div class="kpi-grid">
+    <div class="kpi c-a fi"><div class="kpi-lbl">Avg Sewing DHU%</div><div class="kpi-val c-a" id="kDHU">—</div><div class="kpi-sub">Target ≤ 2.5%</div><div class="kpi-badge" id="kDHUt">—</div></div>
+    <div class="kpi c-r fi"><div class="kpi-lbl">Finishing DHU%</div><div class="kpi-val c-r" id="kFin">—</div><div class="kpi-sub">Target ≤ 3.0%</div></div>
+    <div class="kpi c-g fi"><div class="kpi-lbl">Production Eff%</div><div class="kpi-val c-g" id="kEff">—</div><div class="kpi-sub">Target ≥ 85%</div></div>
+    <div class="kpi c-o fi"><div class="kpi-lbl">Total Defects</div><div class="kpi-val c-o" id="kDef">—</div><div class="kpi-sub">Filtered period</div></div>
+    <div class="kpi c-y fi"><div class="kpi-lbl">Table Balance</div><div class="kpi-val c-y" id="kBal">—</div><div class="kpi-sub">Pending pcs</div></div>
+    <div class="kpi c-p fi"><div class="kpi-lbl">False Reports 🚨</div><div class="kpi-val c-p" id="kFlg">—</div><div class="kpi-sub">Flagged rows</div></div>
+  </div>
+
+  <!-- ROW 1: DHU Trend + Production vs Quality -->
+  <div class="sec-head">
+    <div class="sec-title">📈 DHU TREND & PRODUCTION</div>
+    <button class="btn-pdf" onclick="xpdf('r1')">
+      <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/><path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/></svg>
+      PDF A4
+    </button>
+  </div>
+  <div class="g2" id="r1">
+    <div class="cc"><div class="cc-head"><h3>HOURLY DHU% TREND</h3><span class="mtag">SEWING</span></div><div class="cc-body"><canvas id="cDHU"></canvas></div></div>
+    <div class="cc"><div class="cc-head"><h3>PRODUCTION vs QUALITY CHECK</h3><span class="mtag">HOURLY pcs</span></div><div class="cc-body"><canvas id="cProd"></canvas></div></div>
+  </div>
+
+  <!-- ROW 2: Defect Pareto + Unit DHU -->
+  <div class="sec-head">
+    <div class="sec-title">❌ DEFECT ANALYSIS</div>
+    <button class="btn-pdf" onclick="xpdf('r2')">
+      <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/><path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/></svg>
+      PDF A4
+    </button>
+  </div>
+  <div class="g2" id="r2">
+    <div class="cc"><div class="cc-head"><h3>TOP DEFECT TYPES — PARETO</h3><span class="mtag">RANKED</span></div><div class="cc-body"><canvas id="cPareto"></canvas></div></div>
+    <div class="cc"><div class="cc-head"><h3>UNIT-WISE DHU COMPARISON</h3><span class="mtag">ALL UNITS</span></div><div class="cc-body"><canvas id="cUnit"></canvas></div></div>
+  </div>
+
+  <!-- ROW 3: AO Compare + Heatmap -->
+  <div class="sec-head">
+    <div class="sec-title">📦 AO / STYLE ANALYSIS</div>
+    <button class="btn-pdf" onclick="xpdf('r3')">
+      <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/><path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/></svg>
+      PDF A4
+    </button>
+  </div>
+  <div class="g2" id="r3">
+    <div class="cc"><div class="cc-head"><h3>AO-WISE: SEWING vs FINISHING DHU</h3><span class="mtag">COMPARISON</span></div><div class="cc-body"><canvas id="cAO"></canvas></div></div>
+    <div class="cc"><div class="cc-head"><h3>TABLE BALANCE — LINE HEATMAP</h3><span class="mtag">PENDING pcs</span></div><div class="hm-wrap" id="hmWrap"><div style="padding:20px;font-family:var(--mono);font-size:11px;color:var(--muted)">Loading...</div></div></div>
+  </div>
+
+  <!-- ROW 4: Staff Performance -->
+  <div class="sec-head">
+    <div class="sec-title">🏆 STAFF PERFORMANCE RANKING</div>
+    <button class="btn-pdf" onclick="xpdf('r4')">
+      <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/><path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/></svg>
+      PDF A4
+    </button>
+  </div>
+  <div id="r4">
+    <div class="rtabs">
+      <div class="rtab on" onclick="rTab('all',this)">All Roles</div>
+      <div class="rtab" onclick="rTab('Line Quality',this)">Line Quality</div>
+      <div class="rtab" onclick="rTab('QI',this)">QI</div>
+      <div class="rtab" onclick="rTab('Controller',this)">Controller</div>
+      <div class="rtab" onclick="rTab('Floor IC',this)">Floor IC</div>
+    </div>
+    <div class="cc">
+      <div class="cc-head"><h3>INDIVIDUAL PERFORMANCE BOARD</h3><span class="mtag" id="pCnt">0 STAFF</span></div>
+      <div style="overflow-x:auto">
+        <table class="ptable">
+          <thead><tr>
+            <th>#</th><th>Staff ID</th><th>Name</th><th>Role</th><th>Unit</th><th>Line(s)</th>
+            <th>Checked</th><th>Defects</th><th>Sewing DHU%</th><th>Check Rate%</th>
+            <th>Prod Eff%</th><th>Performance</th><th>Grade</th>
+          </tr></thead>
+          <tbody id="pBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ROW 5: Controller & Floor IC Summary -->
+  <div class="sec-head">
+    <div class="sec-title">🎯 CONTROLLER & FLOOR IC SUMMARY</div>
+    <button class="btn-pdf" onclick="xpdf('r5')">
+      <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/><path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/></svg>
+      PDF A4
+    </button>
+  </div>
+  <div class="g2" id="r5">
+    <div class="cc"><div class="cc-head"><h3>CONTROLLER PERFORMANCE</h3><span class="mtag">BY LINES COVERED</span></div><div class="cc-body"><canvas id="cCtrl"></canvas></div></div>
+    <div class="cc"><div class="cc-head"><h3>FLOOR IC PERFORMANCE</h3><span class="mtag">BY LINES COVERED</span></div><div class="cc-body"><canvas id="cFIC"></canvas></div></div>
+  </div>
+
+  <!-- ROW 6: Alerts -->
+  <div class="sec-head">
+    <div class="sec-title">🚨 ALERTS & FLAGS</div>
+    <button class="btn-pdf" onclick="xpdf('r6')">
+      <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/><path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/></svg>
+      PDF A4
+    </button>
+  </div>
+  <div class="alerts" id="r6"></div>
+
+</div>
+
+<!-- FOOTER -->
+<div class="footer">
+  <div class="ftxt">DHU Quality Management System · AppSheet → Google Sheet → Dashboard</div>
+  <div class="ftxt" id="fSheet">Configure SHEET_ID to connect</div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+// ⚙️  CONFIG — সেখানে তোমার Google Sheet ID বসাও
+// ══════════════════════════════════════════════════════════════
+const CFG = {
+  // ⚠️ নিচের YOUR_GOOGLE_SHEET_ID_HERE এর জায়গায় তোমার Sheet ID বসাও
+  // Example: "1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms"
+  SHEET_ID: "YOUR_GOOGLE_SHEET_ID_HERE",
+
+  // Google Sheet-এ Sheet নামগুলো হুবহু এরকম থাকতে হবে
+  HOURLY:     "Hourly_Quality_Data",
+  FINISHING:  "Finishing_DHU_Data",
+  STAFF:      "Staff_Master",
+  PERF:       "Performance_Summary",
+
+  // Targets
+  SEW_DHU:    2.5,
+  FIN_DHU:    3.0,
+  PROD_EFF:   85,
+  BAL_WARN:   50,
+
+  // Auto refresh: 5 মিনিট
+  INTERVAL:   5 * 60 * 1000,
+};
+
+// Column names — তোমার Excel file-এর সাথে exact match
+const COL = {
+  date:       'Date',
+  hour:       'Hour_Slot',
+  unit:       'Unit_No',
+  line:       'Line_No',
+  staffId:    'Staff_ID',
+  staffName:  'Staff_Name',
+  role:       'Role',
+  ao:         'AO_Number',
+  style:      'Style_No',
+  prodT:      'Prod_Target_Hr',
+  prodA:      'Prod_Actual',
+  qcT:        'Quality_Target_Hr',
+  qcA:        'Quality_Checked',
+  defQty:     'Defect_Qty',
+  defType:    'Defect_Type_Primary',
+  balance:    'Table_Balance_Prev',
+  finInsp:    'Inspected_Qty',
+  finDef:     'Defect_Qty',   // Finishing sheet
+};
+
+// ══════════════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════════════
+let RAW = [], FIN = [], STAFF = [], PERF_RAW = [];
+let FILT = [];
+let charts = {};
+let roleF = 'all';
+let isDemo = false;
+
+// ══════════════════════════════════════════════════════════════
+// CSV URL
+// ══════════════════════════════════════════════════════════════
+function csvUrl(sheet) {
+  return `https://docs.google.com/spreadsheets/d/${CFG.SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheet)}`;
+}
+
+// ══════════════════════════════════════════════════════════════
+// LOAD
+// ══════════════════════════════════════════════════════════════
+async function loadAll() {
+  document.getElementById('ldr').classList.remove('off');
+  try {
+    if (CFG.SHEET_ID === 'YOUR_GOOGLE_SHEET_ID_HERE') throw new Error('not configured');
+
+    const [r1,r2,r3,r4] = await Promise.all([
+      fetch(csvUrl(CFG.HOURLY)),
+      fetch(csvUrl(CFG.FINISHING)),
+      fetch(csvUrl(CFG.STAFF)),
+      fetch(csvUrl(CFG.PERF)),
+    ]);
+    if (!r1.ok) throw new Error('Sheet fetch failed');
+
+    RAW      = Papa.parse(await r1.text(), {header:true, skipEmptyLines:true}).data;
+    FIN      = Papa.parse(await r2.text(), {header:true, skipEmptyLines:true}).data;
+    STAFF    = Papa.parse(await r3.text(), {header:true, skipEmptyLines:true}).data;
+    PERF_RAW = Papa.parse(await r4.text(), {header:true, skipEmptyLines:true}).data;
+    isDemo   = false;
+    document.getElementById('demoBanner').style.display = 'none';
+    document.getElementById('fSheet').textContent = 'Sheet: ' + CFG.SHEET_ID.substring(0,16) + '...';
+
+  } catch(e) {
+    isDemo = true;
+    RAW      = demoHourly();
+    FIN      = demoFin();
+    STAFF    = demoStaff();
+    PERF_RAW = [];
+    document.getElementById('demoBanner').style.display = 'block';
+    document.getElementById('fSheet').textContent = 'DEMO MODE — connect Sheet to see real data';
+  }
+
+  FILT = [...RAW];
+  populateFilters();
+  renderAll();
+  document.getElementById('lastUpd').textContent = 'Updated: ' + new Date().toLocaleTimeString();
+  document.getElementById('ldr').classList.add('off');
+}
+
+// ══════════════════════════════════════════════════════════════
+// FILTERS
+// ══════════════════════════════════════════════════════════════
+function populateFilters() {
+  const uniq = (k) => [...new Set(RAW.map(r=>r[k]||'').filter(Boolean))].sort();
+  fillSel('fLine', uniq(COL.line),  'All Lines');
+  fillSel('fAO',   uniq(COL.ao),    'All AO');
+  fillSel('fDate', uniq(COL.date).reverse(), 'All Dates');
+
+  // Hero stats
+  document.getElementById('hLines').textContent = uniq(COL.line).length;
+  document.getElementById('hStaff').textContent = uniq(COL.staffId).length;
+  document.getElementById('hRows').textContent  = RAW.length.toLocaleString();
+}
+function fillSel(id, vals, ph) {
+  const s = document.getElementById(id), cur = s.value;
+  s.innerHTML = `<option value="">${ph}</option>` + vals.map(v=>`<option${v===cur?' selected':''}>${v}</option>`).join('');
+}
+function applyF() {
+  const u=g('fUnit'), l=g('fLine'), a=g('fAO'), ro=g('fRole'), d=g('fDate');
+  FILT = RAW.filter(r => {
+    if(u  && String(r[COL.unit]||'').trim() !== u)  return false;
+    if(l  && (r[COL.line]||'') !== l)  return false;
+    if(a  && (r[COL.ao]||'')   !== a)  return false;
+    if(ro && (r[COL.role]||'') !== ro) return false;
+    if(d  && (r[COL.date]||'') !== d)  return false;
+    return true;
+  });
+  renderAll();
+}
+function clearF() {
+  ['fUnit','fLine','fAO','fRole','fDate'].forEach(id=>document.getElementById(id).value='');
+  FILT=[...RAW]; renderAll();
+}
+function g(id){return document.getElementById(id).value}
+
+// ══════════════════════════════════════════════════════════════
+// RENDER ALL
+// ══════════════════════════════════════════════════════════════
+function renderAll() {
+  renderKPIs(); renderDHUTrend(); renderProd(); renderPareto();
+  renderUnitDHU(); renderAO(); renderHeatmap();
+  renderPerf(); renderCtrlFIC(); renderAlerts();
+}
+
+// ══════════════════════════════════════════════════════════════
+// KPIs
+// ══════════════════════════════════════════════════════════════
+function renderKPIs() {
+  const chk   = sum(FILT, COL.qcA);
+  const def   = sum(FILT, COL.defQty);
+  const prodT = sum(FILT, COL.prodT);
+  const prodA = sum(FILT, COL.prodA);
+  const bal   = sum(FILT, COL.balance);
+  const flags = FILT.filter(r => n(r[COL.qcA]) > n(r[COL.prodA]) && n(r[COL.prodA]) > 0).length;
+  const dhu   = chk  > 0 ? def   / chk   * 100 : 0;
+  const eff   = prodT > 0 ? prodA / prodT * 100 : 0;
+
+  const finDef  = sum(FIN, 'Defect_Qty');
+  const finInsp = sum(FIN, 'Inspected_Qty');
+  const finDHU  = finInsp > 0 ? finDef / finInsp * 100 : 0;
+
+  setText('kDHU', dhu.toFixed(1)+'%');
+  setText('kFin',  finDHU.toFixed(1)+'%');
+  setText('kEff',  eff.toFixed(1)+'%');
+  setText('kDef',  def.toLocaleString());
+  setText('kBal',  bal.toLocaleString());
+  setText('kFlg',  flags);
+
+  const te = document.getElementById('kDHUt');
+  te.innerHTML = dhu <= CFG.SEW_DHU
+    ? '<span style="color:var(--green);font-family:var(--mono);font-size:10px">✓ On Target</span>'
+    : `<span style="color:var(--red);font-family:var(--mono);font-size:10px">↑ +${(dhu-CFG.SEW_DHU).toFixed(1)}%</span>`;
+}
+
+// ══════════════════════════════════════════════════════════════
+// CHART: DHU Trend
+// ══════════════════════════════════════════════════════════════
+function renderDHUTrend() {
+  const slots = ['08:00-09:00','09:00-10:00','10:00-11:00','11:00-12:00',
+                 '13:00-14:00','14:00-15:00','15:00-16:00','16:00-17:00'];
+  const lbl  = slots.map(s=>s.split('-')[0]);
+  const dhus = slots.map(s => {
+    const rows = FILT.filter(r=>(r[COL.hour]||'')===s);
+    const c=sumA(rows,COL.qcA), d=sumA(rows,COL.defQty);
+    return c>0 ? +(d/c*100).toFixed(2) : null;
+  });
+  kill('cDHU');
+  charts.dhu = new Chart(document.getElementById('cDHU'),{
+    type:'line',
+    data:{labels:lbl,datasets:[
+      {label:'DHU%',data:dhus,borderColor:'#00D4FF',backgroundColor:'rgba(0,212,255,.1)',borderWidth:2.5,pointRadius:5,pointBackgroundColor:'#00D4FF',fill:true,tension:.4,spanGaps:true},
+      {label:'Target',data:slots.map(()=>CFG.SEW_DHU),borderColor:'rgba(255,68,68,.6)',borderDash:[6,4],borderWidth:1.5,pointRadius:0,fill:false}
+    ]},
+    options:opts('DHU %',true)
+  });
+}
+
+// ══════════════════════════════════════════════════════════════
+// CHART: Production vs QC
+// ══════════════════════════════════════════════════════════════
+function renderProd() {
+  const slots = ['08:00-09:00','09:00-10:00','10:00-11:00','11:00-12:00',
+                 '13:00-14:00','14:00-15:00','15:00-16:00','16:00-17:00'];
+  const lbl  = slots.map(s=>s.split('-')[0]);
+  const prod = slots.map(s=>sumA(FILT.filter(r=>(r[COL.hour]||'')===s),COL.prodA));
+  const qc   = slots.map(s=>sumA(FILT.filter(r=>(r[COL.hour]||'')===s),COL.qcA));
+  kill('cProd');
+  charts.prod = new Chart(document.getElementById('cProd'),{
+    type:'bar',
+    data:{labels:lbl,datasets:[
+      {label:'Production',data:prod,backgroundColor:'rgba(0,230,118,.7)',borderRadius:4},
+      {label:'QC Checked',data:qc,backgroundColor:'rgba(0,212,255,.7)',borderRadius:4}
+    ]},
+    options:opts('Pieces',true)
+  });
+}
+
+// ══════════════════════════════════════════════════════════════
+// CHART: Pareto
+// ══════════════════════════════════════════════════════════════
+function renderPareto() {
+  const mp={};
+  FILT.forEach(r=>{
+    const t=(r[COL.defType]||'').trim();
+    const q=n(r[COL.defQty]);
+    if(!t||q===0) return;
+    mp[t]=(mp[t]||0)+q;
+  });
+  const sorted=Object.entries(mp).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const lbls=sorted.map(([k])=>k.replace(/^D\d+\s*-\s*/,''));
+  const vals=sorted.map(([,v])=>v);
+  const tot=vals.reduce((a,b)=>a+b,0);
+  let cum=0;
+  const cpct=vals.map(v=>{cum+=v;return tot>0?+(cum/tot*100).toFixed(1):0;});
+  kill('cPareto');
+  charts.pareto=new Chart(document.getElementById('cPareto'),{
+    type:'bar',
+    data:{labels:lbls,datasets:[
+      {label:'Count',data:vals,backgroundColor:'rgba(255,68,68,.75)',borderRadius:4,yAxisID:'y'},
+      {label:'Cumulative%',data:cpct,type:'line',borderColor:'#FFD600',borderWidth:2,pointRadius:4,pointBackgroundColor:'#FFD600',fill:false,yAxisID:'y2',tension:.3}
+    ]},
+    options:{...opts('Count',true),scales:{x:sX(),y:{...sY('Count'),position:'left'},y2:{...sY('%'),position:'right',min:0,max:100,grid:{display:false}}}}
+  });
+}
+
+// ══════════════════════════════════════════════════════════════
+// CHART: Unit DHU
+// ══════════════════════════════════════════════════════════════
+function renderUnitDHU() {
+  const units=[1,2,3,4,5,6,7];
+  const dhus=units.map(u=>{
+    const rows=RAW.filter(r=>String(r[COL.unit]||'').trim()===String(u));
+    const c=sumA(rows,COL.qcA),d=sumA(rows,COL.defQty);
+    return c>0?+(d/c*100).toFixed(2):0;
+  });
+  const colors=dhus.map(d=>d<=CFG.SEW_DHU?'rgba(0,230,118,.8)':d<=CFG.SEW_DHU*1.5?'rgba(255,149,0,.8)':'rgba(255,68,68,.8)');
+  kill('cUnit');
+  charts.unit=new Chart(document.getElementById('cUnit'),{
+    type:'bar',
+    data:{labels:units.map(u=>`Unit ${u}`),datasets:[{label:'DHU%',data:dhus,backgroundColor:colors,borderRadius:6}]},
+    options:opts('DHU %',false)
+  });
+}
+
+// ══════════════════════════════════════════════════════════════
+// CHART: AO Compare
+// ══════════════════════════════════════════════════════════════
+function renderAO() {
+  const aos=[...new Set(RAW.map(r=>r[COL.ao]||'').filter(Boolean))].slice(0,8);
+  const sd=aos.map(a=>{const rows=RAW.filter(r=>r[COL.ao]===a);const c=sumA(rows,COL.qcA),d=sumA(rows,COL.defQty);return c>0?+(d/c*100).toFixed(2):0;});
+  const fd=aos.map(a=>{const rows=FIN.filter(r=>(r['AO_Number']||r['AO Number']||'')===a);const i=sumA(rows,'Inspected_Qty'),d=sumA(rows,'Defect_Qty');return i>0?+(d/i*100).toFixed(2):0;});
+  kill('cAO');
+  charts.ao=new Chart(document.getElementById('cAO'),{
+    type:'bar',
+    data:{labels:aos,datasets:[
+      {label:'Sewing DHU%',data:sd,backgroundColor:'rgba(0,212,255,.75)',borderRadius:4},
+      {label:'Finishing DHU%',data:fd,backgroundColor:'rgba(255,68,68,.75)',borderRadius:4}
+    ]},
+    options:opts('DHU %',true)
+  });
+}
+
+// ══════════════════════════════════════════════════════════════
+// HEATMAP: Table Balance
+// ══════════════════════════════════════════════════════════════
+function renderHeatmap() {
+  const wrap=document.getElementById('hmWrap');
+  const slots=['08:00-09:00','09:00-10:00','10:00-11:00','11:00-12:00','13:00-14:00','14:00-15:00','15:00-16:00','16:00-17:00'];
+  const slotLbl=slots.map(s=>s.split('-')[0]);
+  const lines=[...new Set(FILT.map(r=>r[COL.line]||'').filter(Boolean))].sort().slice(0,14);
+  if(!lines.length){wrap.innerHTML='<div style="padding:16px;font-family:var(--mono);font-size:11px;color:var(--muted)">No data</div>';return;}
+
+  let maxV=1;
+  FILT.forEach(r=>{const v=n(r[COL.balance]);if(v>maxV)maxV=v;});
+  const cw=Math.max(44,Math.floor((wrap.offsetWidth-70)/slots.length));
+
+  let h=`<div class="hm-inner" style="min-width:${cw*slots.length+66}px;padding:4px">`;
+  h+=`<div style="display:flex;gap:3px;margin-left:62px;margin-bottom:3px">`;
+  slotLbl.forEach(s=>h+=`<div class="hm-lbl" style="width:${cw}px">${s}</div>`);
+  h+='</div>';
+
+  lines.forEach(line=>{
+    h+=`<div style="display:flex;gap:3px;margin-bottom:3px;align-items:center">`;
+    h+=`<div class="hm-lbl" style="width:58px;text-align:right;padding-right:5px">${line}</div>`;
+    slots.forEach(slot=>{
+      const rows=FILT.filter(r=>(r[COL.line]||'')===line&&(r[COL.hour]||'')===slot);
+      const val=rows.length?sumA(rows,COL.balance):null;
+      const pct=val!==null?val/maxV:0;
+      const bg=val===null?'var(--border)':val===0?'rgba(0,230,118,.2)':val<=20?`rgba(0,212,255,${.2+pct*.5})`:val<=50?`rgba(255,149,0,${.3+pct*.4})`:`rgba(255,68,68,${.4+pct*.4})`;
+      const fc=val===null?'var(--muted2)':val>30?'#fff':'var(--text)';
+      h+=`<div class="hm-cell" style="width:${cw}px;background:${bg};color:${fc}" title="${line} | ${slot} | ${val??'—'} pcs">${val??'—'}</div>`;
+    });
+    h+='</div>';
+  });
+
+  h+=`<div style="display:flex;gap:14px;margin-top:10px;margin-left:62px">
+    <div style="display:flex;align-items:center;gap:5px"><div style="width:12px;height:12px;border-radius:2px;background:rgba(0,230,118,.3)"></div><span style="font-family:var(--mono);font-size:9px;color:var(--muted)">0</span></div>
+    <div style="display:flex;align-items:center;gap:5px"><div style="width:12px;height:12px;border-radius:2px;background:rgba(0,212,255,.5)"></div><span style="font-family:var(--mono);font-size:9px;color:var(--muted)">1–20</span></div>
+    <div style="display:flex;align-items:center;gap:5px"><div style="width:12px;height:12px;border-radius:2px;background:rgba(255,149,0,.6)"></div><span style="font-family:var(--mono);font-size:9px;color:var(--muted)">21–50</span></div>
+    <div style="display:flex;align-items:center;gap:5px"><div style="width:12px;height:12px;border-radius:2px;background:rgba(255,68,68,.8)"></div><span style="font-family:var(--mono);font-size:9px;color:var(--muted)">&gt;50 ⚠</span></div>
+  </div></div>`;
+  wrap.innerHTML=h;
+}
+
+// ══════════════════════════════════════════════════════════════
+// PERFORMANCE TABLE
+// ══════════════════════════════════════════════════════════════
+function renderPerf(rf) {
+  if(rf!==undefined) roleF=rf;
+  const mp={};
+  FILT.forEach(r=>{
+    const id=r[COL.staffId]||r[COL.staffName]||'?';
+    const role=r[COL.role]||'';
+    if(roleF!=='all'&&role!==roleF) return;
+    if(!mp[id]) mp[id]={id,name:r[COL.staffName]||'',role,unit:r[COL.unit]||'',line:r[COL.line]||'',chk:0,def:0,prodT:0,prodA:0};
+    mp[id].chk   +=n(r[COL.qcA]);
+    mp[id].def   +=n(r[COL.defQty]);
+    mp[id].prodT +=n(r[COL.prodT]);
+    mp[id].prodA +=n(r[COL.prodA]);
+  });
+
+  const staff=Object.values(mp).map(s=>{
+    s.dhu      =s.chk  >0?s.def   /s.chk  *100:0;
+    s.chkRate  =s.prodA>0?s.chk   /s.prodA*100:0;
+    s.prodEff  =s.prodT>0?s.prodA /s.prodT*100:0;
+    s.perf     =(s.prodEff*.3)+(s.chkRate*.3)+((100-s.dhu)*.4);
+    return s;
+  }).sort((a,b)=>b.perf-a.perf);
+
+  document.getElementById('pCnt').textContent=staff.length+' STAFF';
+  const tb=document.getElementById('pBody');
+  if(!staff.length){tb.innerHTML=`<tr><td colspan="13" style="text-align:center;padding:28px;color:var(--muted);font-family:var(--mono);font-size:11px">No data for selected filters</td></tr>`;return;}
+
+  tb.innerHTML=staff.map((s,i)=>{
+    const rk=i<3?`r${i+1}`:'rn';
+    const pct=Math.min(100,s.perf).toFixed(1);
+    const col=s.perf>=90?'#00E676':s.perf>=75?'#FFD600':s.perf>=60?'#FF9500':'#FF4444';
+    const [gl,gc]=s.perf>=90?['Excellent','gex']:s.perf>=75?['Good','ggd']:s.perf>=60?['Average','gav']:['Poor','gpr'];
+    const dhuCol=s.dhu<=CFG.SEW_DHU?'var(--green)':'var(--red)';
+    return `<tr>
+      <td><span class="rnk ${rk}">${i+1}</span></td>
+      <td style="font-family:var(--mono);font-size:10px;color:var(--accent)">${s.id}</td>
+      <td style="font-weight:500">${s.name||'—'}</td>
+      <td style="font-family:var(--mono);font-size:10px;color:var(--muted)">${s.role}</td>
+      <td style="font-family:var(--mono);font-size:10px">${s.unit}</td>
+      <td style="font-family:var(--mono);font-size:10px">${s.line}</td>
+      <td style="font-family:var(--mono)">${s.chk.toLocaleString()}</td>
+      <td style="font-family:var(--mono);color:var(--red)">${s.def.toLocaleString()}</td>
+      <td style="font-family:var(--mono);color:${dhuCol}">${s.dhu.toFixed(1)}%</td>
+      <td style="font-family:var(--mono)">${s.chkRate.toFixed(1)}%</td>
+      <td style="font-family:var(--mono)">${s.prodEff.toFixed(1)}%</td>
+      <td><div class="pbar-wrap"><div class="pbar-bg"><div class="pbar-fill" style="width:${pct}%;background:${col}"></div></div><span style="font-family:var(--mono);font-size:10px;color:${col};min-width:38px">${pct}%</span></div></td>
+      <td><span class="gbadge ${gc}">${gl}</span></td>
+    </tr>`;
+  }).join('');
+}
+function rTab(role,el){
+  document.querySelectorAll('.rtab').forEach(t=>t.classList.remove('on'));
+  el.classList.add('on');
+  renderPerf(role);
+}
+
+// ══════════════════════════════════════════════════════════════
+// CHART: Controller & Floor IC performance bars
+// ══════════════════════════════════════════════════════════════
+function renderCtrlFIC() {
+  // Controller
+  const ctrls=[...new Set(STAFF.filter(s=>(s.Role||s.role||'')==='Controller').map(s=>s.Full_Name||s.Staff_Name||''))].filter(Boolean);
+  const ctrlDHU=ctrls.map(name=>{
+    const staffRow=STAFF.find(s=>(s.Full_Name||s.Staff_Name||'')===name);
+    const lines=(staffRow?.Assigned_Lines||'').split(',').map(l=>l.trim());
+    const rows=FILT.filter(r=>lines.includes(r[COL.line]||''));
+    const c=sumA(rows,COL.qcA),d=sumA(rows,COL.defQty);
+    return c>0?+(d/c*100).toFixed(2):0;
+  });
+  const cColors=ctrlDHU.map(d=>d<=CFG.SEW_DHU?'rgba(0,230,118,.8)':d<=CFG.SEW_DHU*1.5?'rgba(255,149,0,.8)':'rgba(255,68,68,.8)');
+
+  kill('cCtrl');
+  charts.ctrl=new Chart(document.getElementById('cCtrl'),{
+    type:'bar',
+    data:{labels:ctrls.length?ctrls:['No Data'],datasets:[{label:'DHU%',data:ctrlDHU.length?ctrlDHU:[0],backgroundColor:cColors,borderRadius:6}]},
+    options:opts('DHU %',false)
+  });
+
+  // Floor IC
+  const fics=[...new Set(STAFF.filter(s=>(s.Role||s.role||'')==='Floor IC').map(s=>s.Full_Name||s.Staff_Name||''))].filter(Boolean);
+  const ficDHU=fics.map(name=>{
+    const staffRow=STAFF.find(s=>(s.Full_Name||s.Staff_Name||'')===name);
+    const lines=(staffRow?.Assigned_Lines||'').split(',').map(l=>l.trim());
+    const rows=FILT.filter(r=>lines.includes(r[COL.line]||''));
+    const c=sumA(rows,COL.qcA),d=sumA(rows,COL.defQty);
+    return c>0?+(d/c*100).toFixed(2):0;
+  });
+  const fColors=ficDHU.map(d=>d<=CFG.SEW_DHU?'rgba(0,230,118,.8)':d<=CFG.SEW_DHU*1.5?'rgba(255,149,0,.8)':'rgba(255,68,68,.8)');
+
+  kill('cFIC');
+  charts.fic=new Chart(document.getElementById('cFIC'),{
+    type:'bar',
+    data:{labels:fics.length?fics:['No Data'],datasets:[{label:'DHU%',data:ficDHU.length?ficDHU:[0],backgroundColor:fColors,borderRadius:6}]},
+    options:opts('DHU %',false)
+  });
+}
+
+// ══════════════════════════════════════════════════════════════
+// ALERTS
+// ══════════════════════════════════════════════════════════════
+function renderAlerts() {
+  const alerts=[];
+  FILT.forEach(r=>{
+    const chk=n(r[COL.qcA]),prod=n(r[COL.prodA]),def=n(r[COL.defQty]),bal=n(r[COL.balance]);
+    const nm=r[COL.staffName]||r[COL.staffId]||'—';
+    const ln=r[COL.line]||'—',sl=r[COL.hour]||'—';
+    if(chk>prod&&prod>0) alerts.push({t:'red',i:'🚨',h:`False Report — ${nm}`,d:`Line ${ln} | ${sl} | Checked ${chk} > Produced ${prod}`});
+    if(bal>CFG.BAL_WARN) alerts.push({t:'warn',i:'⚠️',h:`High Table Balance — Line ${ln}`,d:`${bal} pcs pending | ${sl} | ${nm}`});
+    if(chk>0&&def/chk*100>CFG.SEW_DHU*2) alerts.push({t:'red',i:'📉',h:`DHU Spike — ${nm}`,d:`${(def/chk*100).toFixed(1)}% at Line ${ln} | ${sl}`});
+  });
+  const c=document.getElementById('r6');
+  if(!alerts.length){c.innerHTML=`<div class="no-alert">✓ No alerts for current filter selection.</div>`;return;}
+  c.innerHTML=alerts.slice(0,12).map(a=>`<div class="alert${a.t==='warn'?' warn':''}"><div class="alert-ico">${a.i}</div><div class="alert-txt"><strong>${a.h}</strong><span>${a.d}</span></div></div>`).join('');
+}
+
+// ══════════════════════════════════════════════════════════════
+// PDF EXPORT — A4 Landscape
+// ══════════════════════════════════════════════════════════════
+async function xpdf(secId) {
+  const el=document.getElementById(secId);
+  if(!el) return;
+  const btn=event?.target?.closest('.btn-pdf');
+  if(btn){btn.textContent='⏳...';btn.disabled=true;}
+  try {
+    const canvas=await html2canvas(el,{backgroundColor:'#0F1E35',scale:2,useCORS:true,logging:false});
+    const {jsPDF}=window.jspdf;
+    const pdf=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+    const W=pdf.internal.pageSize.getWidth(),H=pdf.internal.pageSize.getHeight();
+    const ratio=canvas.width/canvas.height;
+    let iw=W-16,ih=iw/ratio;
+    if(ih>H-16){ih=H-16;iw=ih*ratio;}
+    pdf.setFillColor(15,30,53);
+    pdf.rect(0,0,W,H,'F');
+    pdf.addImage(canvas.toDataURL('image/png'),'PNG',(W-iw)/2,8,iw,ih);
+    pdf.setFontSize(7);pdf.setTextColor(90,122,154);
+    pdf.text(`DHU Quality Dashboard · ${new Date().toLocaleString()}`,W/2,H-4,{align:'center'});
+    pdf.save(`DHU_${secId}_${new Date().toISOString().slice(0,10)}.pdf`);
+  } catch(e){console.error(e);}
+  if(btn){
+    btn.innerHTML=`<svg viewBox="0 0 20 20" fill="currentColor" style="width:12px;height:12px"><path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/><path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/></svg> PDF A4`;
+    btn.disabled=false;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// CHART HELPERS
+// ══════════════════════════════════════════════════════════════
+function opts(yLbl,legend){return{responsive:true,maintainAspectRatio:true,plugins:{legend:{display:legend,labels:{color:'#5A7A9A',font:{family:'JetBrains Mono',size:10},boxWidth:10}},tooltip:{backgroundColor:'#0A1828',borderColor:'#1A2E4A',borderWidth:1,titleColor:'#E8F4FF',bodyColor:'#5A7A9A',titleFont:{family:'JetBrains Mono',size:10},bodyFont:{family:'JetBrains Mono',size:10},padding:8}},scales:{x:sX(),y:sY(yLbl)}};}
+function sX(){return{ticks:{color:'#3A5A7A',font:{family:'JetBrains Mono',size:9}},grid:{color:'rgba(26,46,74,.4)'}}}
+function sY(lbl){return{ticks:{color:'#3A5A7A',font:{family:'JetBrains Mono',size:9}},grid:{color:'rgba(26,46,74,.4)'},title:{display:!!lbl,text:lbl,color:'#5A7A9A',font:{family:'JetBrains Mono',size:9}}}}
+function kill(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
+
+// ══════════════════════════════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════════════════════════════
+const n  = v => parseFloat(v)||0;
+const sum= (arr,k)=>arr.reduce((a,r)=>a+n(r[k]),0);
+const sumA=sum;
+const setText=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
+
+// ══════════════════════════════════════════════════════════════
+// DEMO DATA — তোমার Excel-এর structure অনুযায়ী
+// ══════════════════════════════════════════════════════════════
+function demoHourly() {
+  const d=[];
+  const slots=['08:00-09:00','09:00-10:00','10:00-11:00','11:00-12:00','13:00-14:00','14:00-15:00','15:00-16:00','16:00-17:00'];
+  const roles=['Line Quality','QI','Controller','Floor IC'];
+  const defTypes=['D01 - Skip Stitch','D02 - Open Seam','D03 - Raw Edge','D05 - Puckering','D07 - Wrong Measurement','D09 - Dirty Mark'];
+  const aos=['AO-2401','AO-2402','AO-2403','AO-2404','AO-2405'];
+  const today=new Date().toISOString().slice(0,10);
+  const staffNames=['Tajul','Moinul','Majahar','Roton','Manik','Shahin','Iqbal','Delowar','Monoyar','Mostafiq'];
+  for(let unit=1;unit<=7;unit++){
+    for(let line=1;line<=18;line++){
+      slots.forEach((slot,hi)=>{
+        const pA=80+Math.floor(Math.random()*35);
+        const qC=Math.min(pA,60+Math.floor(Math.random()*28));
+        const def=Math.floor(qC*(0.01+Math.random()*.04));
+        const si=(unit-1)*10+line;
+        d.push({
+          Row_ID:`HQ-${String(si*10+hi).padStart(4,'0')}`,
+          Timestamp:`${today} ${slot.split('-')[0]}`,
+          Date:today, Hour_Slot:slot,
+          Staff_ID:4889+((si)%10),
+          Staff_Name:staffNames[(si)%staffNames.length],
+          Role:roles[line%4], Unit_No:unit, Line_No:`L${String(line).padStart(2,'0')}`,
+          AO_Number:aos[Math.floor(Math.random()*aos.length)],
+          Style_No:`STY-${100+(unit*3+line)%8}`,
+          Prod_Target_Hr:100, Prod_Actual:pA,
+          Table_Balance_Prev:Math.floor(Math.random()*70),
+          Quality_Target_Hr:100, Quality_Checked:qC,
+          Defect_Qty:def,
+          Defect_Type_Primary:defTypes[Math.floor(Math.random()*defTypes.length)],
+          Defect_Detail:'', Remarks:'',
+        });
+      });
+    }
+  }
+  return d;
+}
+function demoFin(){
+  return ['AO-2401','AO-2402','AO-2403','AO-2404','AO-2405'].map(ao=>({
+    Date:new Date().toISOString().slice(0,10),
+    AO_Number:ao, Style_No:'STY-100', Unit_No:1,
+    Inspected_Qty:400+Math.floor(Math.random()*300),
+    Defect_Qty:8+Math.floor(Math.random()*15),
+  }));
+}
+function demoStaff(){
+  return [
+    {Staff_ID:4889,Full_Name:'Tajul',Role:'Line Quality',Unit_No:1,Assigned_Lines:'L01'},
+    {Staff_ID:4890,Full_Name:'Moinul',Role:'Line Quality',Unit_No:1,Assigned_Lines:'L02'},
+    {Staff_ID:4891,Full_Name:'Majahar',Role:'Line Quality',Unit_No:1,Assigned_Lines:'L03'},
+    {Staff_ID:4892,Full_Name:'Roton',Role:'QI',Unit_No:1,Assigned_Lines:'L01'},
+    {Staff_ID:4893,Full_Name:'Manik',Role:'QI',Unit_No:1,Assigned_Lines:'L01'},
+    {Staff_ID:4894,Full_Name:'Shahin',Role:'Controller',Unit_No:1,Assigned_Lines:'L01,L02'},
+    {Staff_ID:4895,Full_Name:'Iqbal',Role:'Controller',Unit_No:1,Assigned_Lines:'L03,L04'},
+    {Staff_ID:4896,Full_Name:'Delowar',Role:'Floor IC',Unit_No:1,Assigned_Lines:'L01,L02,L03,L04'},
+    {Staff_ID:4897,Full_Name:'Monoyar',Role:'Floor IC',Unit_No:1,Assigned_Lines:'L05,L06'},
+    {Staff_ID:4898,Full_Name:'Mostafiq',Role:'QI',Unit_No:1,Assigned_Lines:'L02'},
+  ];
+}
+
+function showConfig(){
+  alert('তোমার Google Sheet ID টি কপি করো:\nGoogle Sheet URL → /d/ এর পরের অংশ\n\nতারপর Dashboard-এর HTML file খুলে CFG.SHEET_ID তে বসাও।');
+}
+
+// AUTO REFRESH
+setInterval(loadAll, CFG.INTERVAL);
+window.addEventListener('load', loadAll);
+</script>
+</body>
+</html>
