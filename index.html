@@ -158,6 +158,13 @@ select:focus,select:hover{border-color:var(--accent)}
 /* DEMO BADGE */
 .demo-banner{background:rgba(255,149,0,.1);border-bottom:1px solid rgba(255,149,0,.3);padding:8px 20px;text-align:center;font-family:var(--mono);font-size:11px;color:var(--orange)}
 .demo-banner a{color:var(--accent);text-decoration:underline;cursor:pointer}
+
+.error-state{display:none;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:14px;text-align:center;padding:32px}
+.error-state.show{display:flex}
+.error-icon{font-size:44px}
+.error-title{font-family:var(--display);font-size:26px;color:var(--red)}
+.error-msg{font-family:var(--mono);font-size:12px;color:var(--muted);max-width:480px;line-height:1.8}
+.error-fix{background:rgba(0,212,255,.08);border:1px solid rgba(0,212,255,.22);border-radius:10px;padding:14px 18px;font-family:var(--mono);font-size:11px;color:var(--accent);line-height:2;text-align:left;max-width:500px}
 </style>
 </head>
 <body>
@@ -167,6 +174,20 @@ select:focus,select:hover{border-color:var(--accent)}
   <div class="spin"></div>
   <div class="load-txt">LOADING DASHBOARD DATA...</div>
 </div>
+
+<div class="error-state" id="errState">
+  <div class="error-icon">⚠️</div>
+  <div class="error-title">SHEET CONNECTION FAILED</div>
+  <div class="error-msg" id="errMsg">Unable to load data.</div>
+  <div class="error-fix">
+    ✅ SHEET_ID সঠিক কিনা চেক করো<br>
+    ✅ File → Share → Publish to Web করা আছে কিনা দেখো<br>
+    ✅ "Entire Document" CSV format select করা আছে কিনা দেখো
+  </div>
+  <button class="btn-ref" onclick="location.reload()" style="margin-top:8px">↻ Retry</button>
+</div>
+
+<div id="mainWrap" style="display:none">
 
 <!-- TOPBAR -->
 <div class="topbar">
@@ -332,7 +353,7 @@ select:focus,select:hover{border-color:var(--accent)}
   </div>
   <div class="alerts" id="r6"></div>
 
-</div>
+</div><!-- end mainWrap -->
 
 <!-- FOOTER -->
 <div class="footer">
@@ -347,7 +368,7 @@ select:focus,select:hover{border-color:var(--accent)}
 const CFG = {
   // ⚠️ নিচের YOUR_GOOGLE_SHEET_ID_HERE এর জায়গায় তোমার Sheet ID বসাও
   // Example: "1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms"
-  SHEET_ID: "1ujcdhQFSlZzOp-5xDPMnrbX8F0ISjsYKoyyXrpzBGPw",
+  SHEET_ID: "YOUR_GOOGLE_SHEET_ID_HERE",
 
   // Google Sheet-এ Sheet নামগুলো হুবহু এরকম থাকতে হবে
   HOURLY:     "Hourly_Quality_Data",
@@ -406,41 +427,47 @@ function csvUrl(sheet) {
 // ══════════════════════════════════════════════════════════════
 // LOAD
 // ══════════════════════════════════════════════════════════════
-async function loadAll() {
+async function loadAll(){
   document.getElementById('ldr').classList.remove('off');
-  try {
-    if (CFG.SHEET_ID === 'YOUR_GOOGLE_SHEET_ID_HERE') throw new Error('not configured');
 
-    const [r1,r2,r3,r4] = await Promise.all([
-      fetch(csvUrl(CFG.HOURLY)),
-      fetch(csvUrl(CFG.FINISHING)),
-      fetch(csvUrl(CFG.STAFF)),
-      fetch(csvUrl(CFG.PERF)),
-    ]);
-    if (!r1.ok) throw new Error('Sheet fetch failed');
-
-    RAW      = Papa.parse(await r1.text(), {header:true, skipEmptyLines:true}).data;
-    FIN      = Papa.parse(await r2.text(), {header:true, skipEmptyLines:true}).data;
-    STAFF    = Papa.parse(await r3.text(), {header:true, skipEmptyLines:true}).data;
-    PERF_RAW = Papa.parse(await r4.text(), {header:true, skipEmptyLines:true}).data;
-    isDemo   = false;
-    document.getElementById('demoBanner').style.display = 'none';
-    document.getElementById('fSheet').textContent = 'Sheet: ' + CFG.SHEET_ID.substring(0,16) + '...';
-
-  } catch(e) {
-    isDemo = true;
-    RAW      = demoHourly();
-    FIN      = demoFin();
-    STAFF    = demoStaff();
-    PERF_RAW = [];
-    document.getElementById('demoBanner').style.display = 'block';
-    document.getElementById('fSheet').textContent = 'DEMO MODE — connect Sheet to see real data';
+  if(CFG.SHEET_ID === 'YOUR_GOOGLE_SHEET_ID_HERE'){
+    showError('Sheet ID Not Configured',
+      'Dashboard-এর HTML file-এ CFG.SHEET_ID তে তোমার Google Sheet ID বসাও।
+Sheet URL: https://docs.google.com/spreadsheets/d/[THIS_ID]/edit');
+    return;
   }
 
-  FILT = [...RAW];
-  populateFilters();
-  renderAll();
-  document.getElementById('lastUpd').textContent = 'Updated: ' + new Date().toLocaleTimeString();
+  try {
+    const [r1,r2,r3,r4,r5] = await Promise.all([
+      fetchSheet(CFG.SHEETS.HOURLY),
+      fetchSheet(CFG.SHEETS.FINISHING),
+      fetchSheet(CFG.SHEETS.PERFORMANCE),
+      fetchSheet(CFG.SHEETS.LINE_MAP),
+      fetchSheet(CFG.SHEETS.AO),
+    ]);
+
+    RAW=r1; FIN=r2; PERF=r3; LMAP=r4; AO_DATA=r5;
+
+    if(RAW.length === 0) throw new Error('Hourly_Quality_Data sheet is empty.');
+
+    document.getElementById('mainWrap').style.display = 'block';
+    document.getElementById('errState').classList.remove('show');
+    FILT = [...RAW];
+
+    populateFilters();
+    updateHeroStats();
+    renderAll();
+
+    document.getElementById('updTxt').textContent = 'Updated: '+new Date().toLocaleTimeString();
+    document.getElementById('fSheet').textContent = 'Sheet: '+CFG.SHEET_ID.substring(0,18)+'...';
+
+  } catch(e){
+    showError('Data Load Failed', e.message + '
+
+Google Sheet টি Publish to Web করা আছে কিনা দেখো।');
+    console.error(e);
+  }
+
   document.getElementById('ldr').classList.add('off');
 }
 
@@ -464,6 +491,20 @@ function fillSel(id, vals, ph) {
 }
 function applyF() {
   const u=g('fUnit'), l=g('fLine'), a=g('fAO'), ro=g('fRole'), d=g('fDate');
+  // Update line dropdown when unit changes
+  const uSel = g('fUnit');
+  if(uSel){
+    const filteredLines = [...new Set(RAW.filter(r=>String(r.Unit_No||'')===String(uSel)).map(r=>r.Line_No||'').filter(Boolean))].sort();
+    const curLine = g('fLine');
+    fillSel('fLine', filteredLines, 'All Lines');
+    if(curLine && filteredLines.includes(curLine)) document.getElementById('fLine').value = curLine;
+  } else {
+    const allLines = [...new Set(RAW.map(r=>r.Line_No||'').filter(Boolean))].sort();
+    const curLine = g('fLine');
+    fillSel('fLine', allLines, 'All Lines');
+    if(curLine) document.getElementById('fLine').value = curLine;
+  }
+
   FILT = RAW.filter(r => {
     if(u  && String(r[COL.unit]||'').trim() !== u)  return false;
     if(l  && (r[COL.line]||'') !== l)  return false;
@@ -895,6 +936,20 @@ function demoStaff(){
 
 function showConfig(){
   alert('তোমার Google Sheet ID টি কপি করো:\nGoogle Sheet URL → /d/ এর পরের অংশ\n\nতারপর Dashboard-এর HTML file খুলে CFG.SHEET_ID তে বসাও।');
+}
+
+
+function noDataHTML(){
+  return '<div class="no-data"><div class="no-data-icon">📊</div><span style=\"font-family:var(--mono);font-size:11px\">No data for current filter</span></div>';
+}
+
+function showError(title, msg){
+  document.getElementById('ldr').classList.add('off');
+  const es = document.getElementById('errState');
+  es.classList.add('show');
+  es.querySelector('.error-title').textContent = title;
+  document.getElementById('errMsg').textContent = msg;
+  document.getElementById('mainWrap').style.display = 'none';
 }
 
 // AUTO REFRESH
