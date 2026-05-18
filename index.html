@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>DHU Quality Dashboard</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -12,159 +12,162 @@
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#060D1A;--surface:#0C1628;--card:#0F1E35;--border:#1A2E4A;--border2:#243650;
-  --accent:#00D4FF;--accent2:#0099CC;--green:#00E676;--red:#FF4444;
+  --bg:#060D1A;--surface:#0C1628;--card:#0F1E35;
+  --border:#1A2E4A;--border2:#243650;
+  --accent:#00D4FF;--green:#00E676;--red:#FF4444;
   --orange:#FF9500;--yellow:#FFD600;--purple:#B388FF;
+  --teal:#00BFA5;
   --text:#E8F4FF;--muted:#5A7A9A;--muted2:#3A5A7A;
-  --mono:'JetBrains Mono',monospace;--body:'Outfit',sans-serif;--display:'Bebas Neue',sans-serif;
+  --mono:'JetBrains Mono',monospace;
+  --body:'Outfit',sans-serif;
+  --display:'Bebas Neue',sans-serif;
 }
 html{scroll-behavior:smooth}
 body{font-family:var(--body);background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
-body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,212,255,.012) 2px,rgba(0,212,255,.012) 4px);pointer-events:none;z-index:9999}
+body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,212,255,.009) 2px,rgba(0,212,255,.009) 4px);pointer-events:none;z-index:9999}
 
-/* TOPBAR */
-.topbar{position:sticky;top:0;z-index:100;background:rgba(6,13,26,.95);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);padding:0 20px;display:flex;align-items:center;justify-content:space-between;height:56px;gap:10px}
+/* ── LOADER ── */
+.loader{position:fixed;inset:0;z-index:1000;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;transition:opacity .4s}
+.loader.off{opacity:0;pointer-events:none}
+.spin{width:44px;height:44px;border-radius:50%;border:3px solid var(--border);border-top-color:var(--accent);animation:rot .7s linear infinite}
+@keyframes rot{to{transform:rotate(360deg)}}
+.load-txt{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.12em}
+.load-bar-wrap{width:240px;height:3px;background:var(--border);border-radius:2px;overflow:hidden}
+.load-bar{height:100%;background:var(--accent);border-radius:2px;width:0%;transition:width .3s ease}
+.load-step{font-family:var(--mono);font-size:10px;color:var(--accent);letter-spacing:.08em;min-height:14px}
+
+/* ── ERROR ── */
+.err-state{display:none;flex-direction:column;align-items:center;justify-content:center;min-height:70vh;gap:14px;text-align:center;padding:32px}
+.err-state.on{display:flex}
+.err-ico{font-size:42px}
+.err-ttl{font-family:var(--display);font-size:26px;color:var(--red)}
+.err-msg{font-family:var(--mono);font-size:12px;color:var(--muted);max-width:480px;line-height:1.9}
+.err-box{background:rgba(0,212,255,.07);border:1px solid rgba(0,212,255,.22);border-radius:10px;padding:14px 18px;font-family:var(--mono);font-size:11px;color:var(--accent);line-height:2.1;text-align:left;max-width:500px}
+
+/* ── TOPBAR ── */
+.topbar{position:sticky;top:0;z-index:100;background:rgba(6,13,26,.96);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);padding:0 20px;display:flex;align-items:center;justify-content:space-between;height:52px}
 .logo{display:flex;align-items:center;gap:10px}
-.logo-mark{width:34px;height:34px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:grid;place-items:center;font-family:var(--display);font-size:17px;color:var(--bg);flex-shrink:0}
-.logo-text{font-family:var(--display);font-size:20px;letter-spacing:.06em}
+.logo-mark{width:30px;height:30px;border-radius:7px;background:linear-gradient(135deg,var(--accent),#0099CC);display:grid;place-items:center;font-family:var(--display);font-size:15px;color:var(--bg)}
+.logo-text{font-family:var(--display);font-size:18px;letter-spacing:.06em}
 .logo-sub{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:.1em}
-.topbar-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
-.live-badge{display:flex;align-items:center;gap:5px;background:rgba(0,230,118,.1);border:1px solid rgba(0,230,118,.3);color:var(--green);font-family:var(--mono);font-size:10px;padding:4px 10px;border-radius:100px}
+.tb-r{display:flex;align-items:center;gap:8px}
+.live{display:flex;align-items:center;gap:5px;background:rgba(0,230,118,.1);border:1px solid rgba(0,230,118,.3);color:var(--green);font-family:var(--mono);font-size:10px;padding:3px 9px;border-radius:100px}
 .live-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 1.4s infinite}
-@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}
-.last-upd{font-family:var(--mono);font-size:10px;color:var(--muted)}
-.btn-refresh{background:var(--border);border:1px solid var(--border2);color:var(--accent);font-family:var(--mono);font-size:10px;padding:5px 12px;border-radius:7px;cursor:pointer;transition:all .2s}
-.btn-refresh:hover{background:var(--accent);color:var(--bg)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.upd-txt{font-family:var(--mono);font-size:10px;color:var(--muted)}
+.speed-badge{font-family:var(--mono);font-size:10px;color:var(--teal);background:rgba(0,191,165,.1);border:1px solid rgba(0,191,165,.3);padding:3px 8px;border-radius:6px}
+.btn-ref{background:var(--border);border:1px solid var(--border2);color:var(--accent);font-family:var(--mono);font-size:10px;padding:4px 11px;border-radius:6px;cursor:pointer;transition:all .2s}
+.btn-ref:hover{background:var(--accent);color:var(--bg)}
 
-/* HERO */
-.hero{background:var(--bg);border-bottom:1px solid var(--border);padding:28px 20px 22px;position:relative;overflow:hidden}
-.hero-grid{position:absolute;inset:0;background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);background-size:40px 40px;opacity:.25}
-.hero-glow{position:absolute;top:-80px;right:-80px;width:360px;height:360px;border-radius:50%;background:radial-gradient(circle,rgba(0,212,255,.07) 0%,transparent 70%)}
-.hero-inner{position:relative;z-index:1;max-width:1400px;margin:0 auto}
-.hero-title{font-family:var(--display);font-size:clamp(28px,4.5vw,52px);line-height:1;letter-spacing:.04em}
-.hero-title span{color:var(--accent)}
-.hero-meta{font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:5px;letter-spacing:.08em}
-.hero-kpis{display:flex;gap:28px;flex-wrap:wrap;margin-top:20px}
-.hkpi{text-align:center}
-.hkpi-num{font-family:var(--display);font-size:26px;color:var(--accent)}
-.hkpi-lbl{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:.07em}
+/* ── HERO ── */
+.hero{border-bottom:1px solid var(--border);padding:20px 20px 16px;position:relative;overflow:hidden}
+.hero-grid{position:absolute;inset:0;background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);background-size:40px 40px;opacity:.18}
+.hero-glow{position:absolute;top:-60px;right:-60px;width:300px;height:300px;border-radius:50%;background:radial-gradient(circle,rgba(0,212,255,.06) 0%,transparent 70%)}
+.hero-inner{position:relative;z-index:1;max-width:1400px;margin:0 auto;display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.hero-left .title{font-family:var(--display);font-size:clamp(24px,3.5vw,44px);line-height:1;letter-spacing:.04em}
+.hero-left .title span{color:var(--accent)}
+.hero-left .meta{font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:4px;letter-spacing:.07em}
+.hero-stats{display:flex;gap:20px;flex-wrap:wrap}
+.hst{text-align:center}
+.hst-n{font-family:var(--display);font-size:22px;color:var(--accent)}
+.hst-l{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:.07em}
 
-/* FILTER BAR */
-.fbar{background:var(--surface);border-bottom:1px solid var(--border);padding:10px 20px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.flbl{font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:.08em;margin-right:2px}
-select{background:var(--card);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:11px;padding:6px 28px 6px 10px;border-radius:7px;cursor:pointer;outline:none;transition:border-color .2s;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 20 20' fill='%235A7A9A'%3E%3Cpath d='M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center}
+/* ── FILTER BAR ── */
+.fbar{background:var(--surface);border-bottom:1px solid var(--border);padding:8px 20px;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.flbl{font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:.08em}
+select{background:var(--card);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:11px;padding:5px 26px 5px 9px;border-radius:6px;cursor:pointer;outline:none;transition:border-color .2s;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 20 20' fill='%235A7A9A'%3E%3Cpath d='M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 7px center}
 select:focus,select:hover{border-color:var(--accent)}
-.fdivider{width:1px;height:26px;background:var(--border);margin:0 2px}
-.btn-clear{background:transparent;border:1px solid var(--border2);color:var(--muted);font-family:var(--mono);font-size:10px;padding:6px 12px;border-radius:7px;cursor:pointer;transition:all .2s}
-.btn-clear:hover{border-color:var(--red);color:var(--red)}
+.fdiv{width:1px;height:22px;background:var(--border);margin:0 2px}
+.btn-clr{background:transparent;border:1px solid var(--border2);color:var(--muted);font-family:var(--mono);font-size:10px;padding:5px 11px;border-radius:6px;cursor:pointer;transition:all .2s}
+.btn-clr:hover{border-color:var(--red);color:var(--red)}
+.f-info{font-family:var(--mono);font-size:10px;color:var(--accent);background:rgba(0,212,255,.08);border:1px solid rgba(0,212,255,.2);padding:3px 9px;border-radius:5px}
 
-/* MAIN */
-.main{max-width:1400px;margin:0 auto;padding:20px 20px 80px}
+/* ── MAIN ── */
+.main{max-width:1400px;margin:0 auto;padding:18px 20px 80px}
 
-/* KPI STRIP */
-.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:22px}
-.kpi{background:var(--card);border:1px solid var(--border);border-radius:13px;padding:16px 14px;position:relative;overflow:hidden;transition:transform .2s,border-color .2s}
+/* ── KPI STRIP ── */
+.kgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:9px;margin-bottom:18px}
+.kpi{background:var(--card);border:1px solid var(--border);border-radius:11px;padding:13px 12px;position:relative;overflow:hidden;transition:transform .2s,border-color .2s}
 .kpi:hover{transform:translateY(-2px);border-color:var(--border2)}
 .kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
-.kpi.c-a::before{background:var(--accent)}.kpi.c-g::before{background:var(--green)}
-.kpi.c-r::before{background:var(--red)}.kpi.c-o::before{background:var(--orange)}
-.kpi.c-y::before{background:var(--yellow)}.kpi.c-p::before{background:var(--purple)}
-.kpi-lbl{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:7px}
-.kpi-val{font-family:var(--display);font-size:32px;line-height:1}
-.kpi-val.c-a{color:var(--accent)}.kpi-val.c-g{color:var(--green)}.kpi-val.c-r{color:var(--red)}
-.kpi-val.c-o{color:var(--orange)}.kpi-val.c-y{color:var(--yellow)}.kpi-val.c-p{color:var(--purple)}
-.kpi-sub{font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:3px}
-.kpi-badge{position:absolute;top:14px;right:12px;font-family:var(--mono);font-size:10px}
+.ca::before{background:var(--accent)}.cg::before{background:var(--green)}
+.cr::before{background:var(--red)}.co::before{background:var(--orange)}
+.cy::before{background:var(--yellow)}.cp::before{background:var(--purple)}
+.ct::before{background:var(--teal)}
+.k-lbl{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:5px}
+.k-val{font-family:var(--display);font-size:28px;line-height:1}
+.k-val.ca{color:var(--accent)}.k-val.cg{color:var(--green)}.k-val.cr{color:var(--red)}
+.k-val.co{color:var(--orange)}.k-val.cy{color:var(--yellow)}.k-val.cp{color:var(--purple)}.k-val.ct{color:var(--teal)}
+.k-sub{font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:2px}
+.k-bdg{position:absolute;top:11px;right:9px;font-family:var(--mono);font-size:9px}
 
-/* SECTION */
-.sec-head{display:flex;align-items:center;justify-content:space-between;margin:28px 0 12px;gap:10px}
-.sec-title{font-family:var(--display);font-size:20px;letter-spacing:.06em}
-.btn-pdf{display:flex;align-items:center;gap:6px;background:rgba(0,212,255,.08);border:1px solid rgba(0,212,255,.22);color:var(--accent);font-family:var(--mono);font-size:10px;padding:6px 12px;border-radius:7px;cursor:pointer;transition:all .2s;white-space:nowrap}
-.btn-pdf:hover{background:rgba(0,212,255,.18);border-color:var(--accent)}
-.btn-pdf svg{width:12px;height:12px}
+/* ── SECTION ── */
+.sh{display:flex;align-items:center;justify-content:space-between;margin:24px 0 10px;gap:10px}
+.st{font-family:var(--display);font-size:18px;letter-spacing:.06em}
+.btn-pdf{display:flex;align-items:center;gap:5px;background:rgba(0,212,255,.07);border:1px solid rgba(0,212,255,.2);color:var(--accent);font-family:var(--mono);font-size:10px;padding:5px 10px;border-radius:6px;cursor:pointer;transition:all .2s;white-space:nowrap}
+.btn-pdf:hover{background:rgba(0,212,255,.15);border-color:var(--accent)}
+.btn-pdf svg{width:11px;height:11px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
 
-/* CHART GRIDS */
-.g2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
-.g1{display:grid;grid-template-columns:1fr;gap:14px}
-
-/* CHART CARD */
-.cc{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden}
-.cc-head{padding:14px 18px 10px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)}
-.cc-head h3{font-family:var(--display);font-size:15px;letter-spacing:.05em}
+/* ── CHART CARD ── */
+.cc{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.cch{padding:12px 15px 8px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)}
+.cch h3{font-family:var(--display);font-size:14px;letter-spacing:.05em}
 .mtag{font-family:var(--mono);font-size:9px;color:var(--muted);background:var(--border);padding:2px 7px;border-radius:4px}
-.cc-body{padding:18px;position:relative}
-.cc-body canvas{max-height:260px}
+.ccb{padding:14px;position:relative}
+.ccb canvas{max-height:240px}
+.nd{display:flex;align-items:center;justify-content:center;height:160px;font-family:var(--mono);font-size:11px;color:var(--muted);flex-direction:column;gap:6px;opacity:.6}
+.nd-ico{font-size:24px}
 
-/* PERFORMANCE TABLE */
-.ptable{width:100%;border-collapse:collapse}
-.ptable th{font-family:var(--mono);font-size:9px;letter-spacing:.1em;color:var(--muted);text-align:left;padding:9px 12px;border-bottom:1px solid var(--border);text-transform:uppercase;white-space:nowrap}
-.ptable td{padding:10px 12px;font-size:12px;border-bottom:1px solid rgba(26,46,74,.4);vertical-align:middle;white-space:nowrap}
-.ptable tr:last-child td{border-bottom:none}
-.ptable tr:hover td{background:rgba(0,212,255,.025)}
-.rnk{width:22px;height:22px;border-radius:5px;display:inline-grid;place-items:center;font-family:var(--mono);font-size:10px;font-weight:600}
+/* ── PERF TABLE ── */
+.rtabs{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px}
+.rtab{background:var(--card);border:1px solid var(--border);color:var(--muted);font-family:var(--mono);font-size:10px;padding:4px 12px;border-radius:6px;cursor:pointer;transition:all .2s}
+.rtab.on,.rtab:hover{background:rgba(0,212,255,.1);border-color:var(--accent);color:var(--accent)}
+.ptbl{width:100%;border-collapse:collapse}
+.ptbl th{font-family:var(--mono);font-size:9px;letter-spacing:.1em;color:var(--muted);text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);text-transform:uppercase;white-space:nowrap}
+.ptbl td{padding:8px 10px;font-size:12px;border-bottom:1px solid rgba(26,46,74,.35);vertical-align:middle;white-space:nowrap}
+.ptbl tr:last-child td{border-bottom:none}
+.ptbl tr:hover td{background:rgba(0,212,255,.02)}
+.rnk{width:20px;height:20px;border-radius:4px;display:inline-grid;place-items:center;font-family:var(--mono);font-size:10px;font-weight:600}
 .r1{background:rgba(255,214,0,.15);color:var(--yellow)}.r2{background:rgba(180,180,180,.1);color:#B0B0B0}
 .r3{background:rgba(205,127,50,.1);color:#CD7F32}.rn{background:var(--border);color:var(--muted)}
-.pbar-wrap{display:flex;align-items:center;gap:8px;min-width:120px}
-.pbar-bg{flex:1;height:5px;border-radius:3px;background:var(--border);overflow:hidden}
-.pbar-fill{height:100%;border-radius:3px;transition:width .6s ease}
-.gbadge{font-family:var(--mono);font-size:10px;font-weight:600;padding:2px 8px;border-radius:5px}
+.pb-w{display:flex;align-items:center;gap:7px;min-width:100px}
+.pb-bg{flex:1;height:4px;border-radius:2px;background:var(--border);overflow:hidden}
+.pb-f{height:100%;border-radius:2px;transition:width .5s ease}
+.gbdg{font-family:var(--mono);font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px}
 .gex{background:rgba(0,230,118,.12);color:var(--green)}.ggd{background:rgba(255,214,0,.12);color:var(--yellow)}
 .gav{background:rgba(255,149,0,.12);color:var(--orange)}.gpr{background:rgba(255,68,68,.12);color:var(--red)}
 
-/* ROLE TABS */
-.rtabs{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:12px}
-.rtab{background:var(--card);border:1px solid var(--border);color:var(--muted);font-family:var(--mono);font-size:10px;padding:6px 14px;border-radius:7px;cursor:pointer;transition:all .2s}
-.rtab.on,.rtab:hover{background:rgba(0,212,255,.1);border-color:var(--accent);color:var(--accent)}
-
-/* HEATMAP */
-.hm-wrap{padding:14px;overflow-x:auto}
-.hm-inner{min-width:420px}
-.hm-cell{border-radius:4px;height:30px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:9px;font-weight:600;cursor:pointer;transition:transform .15s;position:relative}
-.hm-cell:hover{transform:scale(1.08);z-index:2}
+/* ── HEATMAP ── */
+.hm-cell{border-radius:3px;height:26px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:9px;font-weight:600;cursor:default;transition:transform .1s}
+.hm-cell:hover{transform:scale(1.07);z-index:2;position:relative}
 .hm-lbl{font-family:var(--mono);font-size:9px;color:var(--muted);text-align:center}
 
-/* ALERTS */
-.alerts{display:flex;flex-direction:column;gap:7px}
-.alert{display:flex;align-items:center;gap:10px;background:rgba(255,68,68,.06);border:1px solid rgba(255,68,68,.2);border-radius:9px;padding:11px 14px}
-.alert.warn{background:rgba(255,149,0,.06);border-color:rgba(255,149,0,.2)}
-.alert-ico{font-size:16px;flex-shrink:0}
-.alert-txt{flex:1}.alert-txt strong{font-size:12px;display:block;margin-bottom:1px}
-.alert-txt span{font-family:var(--mono);font-size:10px;color:var(--muted)}
-.no-alert{background:rgba(0,230,118,.06);border:1px solid rgba(0,230,118,.2);border-radius:9px;padding:16px 18px;font-family:var(--mono);font-size:12px;color:var(--green)}
+/* ── ALERTS ── */
+.alrts{display:flex;flex-direction:column;gap:6px}
+.alrt{display:flex;align-items:center;gap:10px;border-radius:8px;padding:9px 12px}
+.alrt.high{background:rgba(255,68,68,.06);border:1px solid rgba(255,68,68,.2)}
+.alrt.warn{background:rgba(255,149,0,.06);border:1px solid rgba(255,149,0,.2)}
+.alrt.ok{background:rgba(0,230,118,.06);border:1px solid rgba(0,230,118,.2);font-family:var(--mono);font-size:11px;color:var(--green);justify-content:center;padding:14px}
+.alrt-ico{font-size:14px;flex-shrink:0}
+.alrt-txt strong{font-size:12px;display:block;margin-bottom:1px}
+.alrt-txt span{font-family:var(--mono);font-size:10px;color:var(--muted)}
 
-/* LOADING */
-.loader{position:fixed;inset:0;z-index:500;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;transition:opacity .4s}
-.loader.off{opacity:0;pointer-events:none}
-.spin{width:50px;height:50px;border-radius:50%;border:3px solid var(--border);border-top-color:var(--accent);animation:rot .8s linear infinite}
-@keyframes rot{to{transform:rotate(360deg)}}
-.load-txt{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.1em}
-
-/* FADE IN */
-.fi{opacity:0;transform:translateY(14px);animation:fdin .5s ease forwards}
-@keyframes fdin{to{opacity:1;transform:translateY(0)}}
-.fi:nth-child(1){animation-delay:.05s}.fi:nth-child(2){animation-delay:.1s}
-.fi:nth-child(3){animation-delay:.15s}.fi:nth-child(4){animation-delay:.2s}
-.fi:nth-child(5){animation-delay:.25s}.fi:nth-child(6){animation-delay:.3s}
-
-/* FOOTER */
-.footer{border-top:1px solid var(--border);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px}
+/* ── FOOTER ── */
+.footer{border-top:1px solid var(--border);padding:12px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px}
 .ftxt{font-family:var(--mono);font-size:10px;color:var(--muted)}
 
-/* RESPONSIVE */
-@media(max-width:900px){.g2,.g3{grid-template-columns:1fr}.kpi-grid{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:600px){.topbar{padding:0 12px}.main{padding:14px 12px 60px}.fbar{padding:8px 12px}.logo-sub,.last-upd{display:none}}
+/* ── FADE IN ── */
+.fi{opacity:0;transform:translateY(10px);animation:fdi .4s ease forwards}
+@keyframes fdi{to{opacity:1;transform:translateY(0)}}
+.fi:nth-child(1){animation-delay:.04s}.fi:nth-child(2){animation-delay:.08s}
+.fi:nth-child(3){animation-delay:.12s}.fi:nth-child(4){animation-delay:.16s}
+.fi:nth-child(5){animation-delay:.20s}.fi:nth-child(6){animation-delay:.24s}
+.fi:nth-child(7){animation-delay:.28s}
 
-/* DEMO BADGE */
-.demo-banner{background:rgba(255,149,0,.1);border-bottom:1px solid rgba(255,149,0,.3);padding:8px 20px;text-align:center;font-family:var(--mono);font-size:11px;color:var(--orange)}
-.demo-banner a{color:var(--accent);text-decoration:underline;cursor:pointer}
-
-.error-state{display:none;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:14px;text-align:center;padding:32px}
-.error-state.show{display:flex}
-.error-icon{font-size:44px}
-.error-title{font-family:var(--display);font-size:26px;color:var(--red)}
-.error-msg{font-family:var(--mono);font-size:12px;color:var(--muted);max-width:480px;line-height:1.8}
-.error-fix{background:rgba(0,212,255,.08);border:1px solid rgba(0,212,255,.22);border-radius:10px;padding:14px 18px;font-family:var(--mono);font-size:11px;color:var(--accent);line-height:2;text-align:left;max-width:500px}
+@media(max-width:900px){.g2,.g3{grid-template-columns:1fr}.kgrid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:600px){.topbar{padding:0 12px}.main{padding:12px 12px 60px}.fbar{padding:7px 12px}.upd-txt,.logo-sub,.speed-badge{display:none}}
 </style>
 </head>
 <body>
@@ -172,24 +175,23 @@ select:focus,select:hover{border-color:var(--accent)}
 <!-- LOADER -->
 <div class="loader" id="ldr">
   <div class="spin"></div>
-  <div class="load-txt">LOADING DASHBOARD DATA...</div>
+  <div class="load-txt">LOADING DASHBOARD</div>
+  <div class="load-bar-wrap"><div class="load-bar" id="loadBar"></div></div>
+  <div class="load-step" id="loadStep">Connecting to Google Sheet...</div>
 </div>
 
-<div class="error-state" id="errState">
-  <div class="error-icon">⚠️</div>
-  <div class="error-title">SHEET CONNECTION FAILED</div>
-  <div class="error-msg" id="errMsg">Unable to load data.</div>
-  <div class="error-fix">
-    ✅ SHEET_ID সঠিক কিনা চেক করো<br>
-    ✅ File → Share → Publish to Web করা আছে কিনা দেখো<br>
-    ✅ "Entire Document" CSV format select করা আছে কিনা দেখো
-  </div>
-  <button class="btn-ref" onclick="location.reload()" style="margin-top:8px">↻ Retry</button>
+<!-- ERROR -->
+<div class="err-state" id="errState">
+  <div class="err-ico">⚠️</div>
+  <div class="err-ttl" id="errTtl">Connection Failed</div>
+  <div class="err-msg" id="errMsg">—</div>
+  <div class="err-box" id="errBox"></div>
+  <button class="btn-ref" onclick="location.reload()" style="margin-top:10px">↻ Retry</button>
 </div>
 
-<div id="mainWrap" style="display:none">
+<!-- MAIN WRAP -->
+<div id="wrap" style="display:none">
 
-<!-- TOPBAR -->
 <div class="topbar">
   <div class="logo">
     <div class="logo-mark">D</div>
@@ -198,131 +200,104 @@ select:focus,select:hover{border-color:var(--accent)}
       <div class="logo-sub">QUALITY MANAGEMENT SYSTEM</div>
     </div>
   </div>
-  <div class="topbar-right">
-    <div class="live-badge"><div class="live-dot"></div>LIVE</div>
-    <div class="last-upd" id="lastUpd">—</div>
-    <button class="btn-refresh" onclick="loadAll()">↻ REFRESH</button>
+  <div class="tb-r">
+    <div class="live"><div class="live-dot"></div>LIVE</div>
+    <div class="speed-badge" id="speedBadge">—</div>
+    <div class="upd-txt" id="updTxt">—</div>
+    <button class="btn-ref" onclick="loadAll()">↻ REFRESH</button>
   </div>
 </div>
 
-<!-- DEMO BANNER (hidden when real sheet connected) -->
-<div class="demo-banner" id="demoBanner" style="display:none">
-  ⚠ DEMO MODE — Real data not connected.
-  <a onclick="showConfig()">Click here to connect your Google Sheet</a>
-</div>
-
-<!-- HERO -->
 <div class="hero">
   <div class="hero-grid"></div>
   <div class="hero-glow"></div>
   <div class="hero-inner">
-    <div class="hero-title">REAL-TIME <span>QUALITY</span> ANALYTICS</div>
-    <div class="hero-meta">7 UNITS · SEWING → FINISHING · HOURLY TRACKING · AppSheet → Google Sheet</div>
-    <div class="hero-kpis">
-      <div class="hkpi"><div class="hkpi-num" id="hUnits">7</div><div class="hkpi-lbl">UNITS</div></div>
-      <div class="hkpi"><div class="hkpi-num" id="hLines">—</div><div class="hkpi-lbl">LINES</div></div>
-      <div class="hkpi"><div class="hkpi-num" id="hStaff">—</div><div class="hkpi-lbl">STAFF</div></div>
-      <div class="hkpi"><div class="hkpi-num" id="hRows">—</div><div class="hkpi-lbl">DATA ROWS</div></div>
+    <div class="hero-left">
+      <div class="title">REAL-TIME <span>QUALITY</span> ANALYTICS</div>
+      <div class="meta" id="heroMeta">—</div>
+    </div>
+    <div class="hero-stats">
+      <div class="hst"><div class="hst-n" id="hUnits">—</div><div class="hst-l">UNITS</div></div>
+      <div class="hst"><div class="hst-n" id="hLines">—</div><div class="hst-l">LINES</div></div>
+      <div class="hst"><div class="hst-n" id="hStaff">—</div><div class="hst-l">STAFF</div></div>
+      <div class="hst"><div class="hst-n" id="hRows">—</div><div class="hst-l">TOTAL ROWS</div></div>
     </div>
   </div>
 </div>
 
-<!-- FILTER BAR -->
 <div class="fbar">
   <span class="flbl">FILTER:</span>
-  <select id="fUnit" onchange="applyF()">
-    <option value="">All Units</option>
-    <option>1</option><option>2</option><option>3</option><option>4</option>
-    <option>5</option><option>6</option><option>7</option>
-  </select>
+  <select id="fUnit" onchange="applyF()"><option value="">All Units</option></select>
   <select id="fLine" onchange="applyF()"><option value="">All Lines</option></select>
   <select id="fAO"   onchange="applyF()"><option value="">All AO</option></select>
   <select id="fRole" onchange="applyF()">
     <option value="">All Roles</option>
-    <option>Line Quality</option><option>QI</option>
+    <option>QI</option><option>Line Quality</option>
     <option>Controller</option><option>Floor IC</option>
   </select>
   <select id="fDate" onchange="applyF()"><option value="">All Dates</option></select>
-  <div class="fdivider"></div>
-  <button class="btn-clear" onclick="clearF()">✕ Clear</button>
+  <div class="fdiv"></div>
+  <button class="btn-clr" onclick="clearF()">✕ Clear</button>
+  <span class="f-info" id="fInfo" style="display:none"></span>
 </div>
 
-<!-- MAIN CONTENT -->
 <div class="main">
 
-  <!-- KPI STRIP -->
-  <div class="kpi-grid">
-    <div class="kpi c-a fi"><div class="kpi-lbl">Avg Sewing DHU%</div><div class="kpi-val c-a" id="kDHU">—</div><div class="kpi-sub">Target ≤ 2.5%</div><div class="kpi-badge" id="kDHUt">—</div></div>
-    <div class="kpi c-r fi"><div class="kpi-lbl">Finishing DHU%</div><div class="kpi-val c-r" id="kFin">—</div><div class="kpi-sub">Target ≤ 3.0%</div></div>
-    <div class="kpi c-g fi"><div class="kpi-lbl">Production Eff%</div><div class="kpi-val c-g" id="kEff">—</div><div class="kpi-sub">Target ≥ 85%</div></div>
-    <div class="kpi c-o fi"><div class="kpi-lbl">Total Defects</div><div class="kpi-val c-o" id="kDef">—</div><div class="kpi-sub">Filtered period</div></div>
-    <div class="kpi c-y fi"><div class="kpi-lbl">Table Balance</div><div class="kpi-val c-y" id="kBal">—</div><div class="kpi-sub">Pending pcs</div></div>
-    <div class="kpi c-p fi"><div class="kpi-lbl">False Reports 🚨</div><div class="kpi-val c-p" id="kFlg">—</div><div class="kpi-sub">Flagged rows</div></div>
+  <div class="kgrid" id="kgrid">
+    <div class="kpi ca fi"><div class="k-lbl">Avg Sewing DHU%</div><div class="k-val ca" id="kDHU">0.0%</div><div class="k-sub">Target ≤ 2.5%</div><div class="k-bdg" id="kDHUt"></div></div>
+    <div class="kpi cr fi"><div class="k-lbl">Finishing DHU%</div><div class="k-val cr" id="kFin">0.0%</div><div class="k-sub">Target ≤ 3.0%</div></div>
+    <div class="kpi cg fi"><div class="k-lbl">Production Eff%</div><div class="k-val cg" id="kEff">0.0%</div><div class="k-sub">Target ≥ 85%</div></div>
+    <div class="kpi co fi"><div class="k-lbl">Total Defects</div><div class="k-val co" id="kDef">0</div><div class="k-sub">Filtered period</div></div>
+    <div class="kpi cy fi"><div class="k-lbl">Table Balance</div><div class="k-val cy" id="kBal">0</div><div class="k-sub">Max pending pcs</div></div>
+    <div class="kpi cp fi"><div class="k-lbl">False Reports</div><div class="k-val cp" id="kFlg">0</div><div class="k-sub">🚨 Flagged rows</div></div>
+    <div class="kpi ct fi"><div class="k-lbl">Data Coverage</div><div class="k-val ct" id="kDays">0</div><div class="k-sub">Days of data</div></div>
   </div>
 
-  <!-- ROW 1: DHU Trend + Production vs Quality -->
-  <div class="sec-head">
-    <div class="sec-title">📈 DHU TREND & PRODUCTION</div>
-    <button class="btn-pdf" onclick="xpdf('r1')">
-      <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/><path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/></svg>
-      PDF A4
-    </button>
-  </div>
+  <!-- ROW 1: DHU Trend + Production -->
+  <div class="sh"><div class="st">📈 DHU TREND & PRODUCTION</div><button class="btn-pdf" onclick="xpdf('r1')"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/><path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/></svg>PDF A4</button></div>
   <div class="g2" id="r1">
-    <div class="cc"><div class="cc-head"><h3>HOURLY DHU% TREND</h3><span class="mtag">SEWING</span></div><div class="cc-body"><canvas id="cDHU"></canvas></div></div>
-    <div class="cc"><div class="cc-head"><h3>PRODUCTION vs QUALITY CHECK</h3><span class="mtag">HOURLY pcs</span></div><div class="cc-body"><canvas id="cProd"></canvas></div></div>
+    <div class="cc"><div class="cch"><h3>HOURLY DHU% TREND</h3><span class="mtag">LAST 7 DAYS AVG</span></div><div class="ccb"><canvas id="cDHU"></canvas></div></div>
+    <div class="cc"><div class="cch"><h3>PRODUCTION vs QC CHECKED</h3><span class="mtag">HOURLY pcs</span></div><div class="ccb"><canvas id="cProd"></canvas></div></div>
   </div>
 
-  <!-- ROW 2: Defect Pareto + Unit DHU -->
-  <div class="sec-head">
-    <div class="sec-title">❌ DEFECT ANALYSIS</div>
-    <button class="btn-pdf" onclick="xpdf('r2')">
-      <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/><path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/></svg>
-      PDF A4
-    </button>
-  </div>
+  <!-- ROW 2: Defect + Unit DHU -->
+  <div class="sh"><div class="st">❌ DEFECT ANALYSIS</div><button class="btn-pdf" onclick="xpdf('r2')"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/><path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/></svg>PDF A4</button></div>
   <div class="g2" id="r2">
-    <div class="cc"><div class="cc-head"><h3>TOP DEFECT TYPES — PARETO</h3><span class="mtag">RANKED</span></div><div class="cc-body"><canvas id="cPareto"></canvas></div></div>
-    <div class="cc"><div class="cc-head"><h3>UNIT-WISE DHU COMPARISON</h3><span class="mtag">ALL UNITS</span></div><div class="cc-body"><canvas id="cUnit"></canvas></div></div>
+    <div class="cc"><div class="cch"><h3>TOP DEFECT TYPES — PARETO</h3><span class="mtag">RANKED</span></div><div class="ccb"><canvas id="cPareto"></canvas></div></div>
+    <div class="cc"><div class="cch"><h3>UNIT-WISE DHU%</h3><span class="mtag">ALL 7 UNITS</span></div><div class="ccb"><canvas id="cUnit"></canvas></div></div>
   </div>
 
-  <!-- ROW 3: AO Compare + Heatmap -->
-  <div class="sec-head">
-    <div class="sec-title">📦 AO / STYLE ANALYSIS</div>
-    <button class="btn-pdf" onclick="xpdf('r3')">
-      <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/><path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/></svg>
-      PDF A4
-    </button>
-  </div>
+  <!-- ROW 3: AO + Heatmap -->
+  <div class="sh"><div class="st">📦 AO / STYLE ANALYSIS</div><button class="btn-pdf" onclick="xpdf('r3')"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/><path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/></svg>PDF A4</button></div>
   <div class="g2" id="r3">
-    <div class="cc"><div class="cc-head"><h3>AO-WISE: SEWING vs FINISHING DHU</h3><span class="mtag">COMPARISON</span></div><div class="cc-body"><canvas id="cAO"></canvas></div></div>
-    <div class="cc"><div class="cc-head"><h3>TABLE BALANCE — LINE HEATMAP</h3><span class="mtag">PENDING pcs</span></div><div class="hm-wrap" id="hmWrap"><div style="padding:20px;font-family:var(--mono);font-size:11px;color:var(--muted)">Loading...</div></div></div>
+    <div class="cc"><div class="cch"><h3>AO: SEWING vs FINISHING DHU%</h3><span class="mtag">COMPARISON</span></div><div class="ccb"><canvas id="cAO"></canvas></div></div>
+    <div class="cc"><div class="cch"><h3>LINE DHU% HEATMAP</h3><span class="mtag">BY LINE</span></div><div id="hmWrap" style="overflow-x:auto;padding:12px"><div class="nd"><div class="nd-ico">⌛</div>Loading...</div></div></div>
   </div>
 
-  <!-- ROW 4: Staff Performance -->
-  <div class="sec-head">
-    <div class="sec-title">🏆 STAFF PERFORMANCE RANKING</div>
-    <button class="btn-pdf" onclick="xpdf('r4')">
-      <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/><path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/></svg>
-      PDF A4
-    </button>
+  <!-- ROW 4: Daily trend -->
+  <div class="sh"><div class="st">📅 DAILY TREND</div><button class="btn-pdf" onclick="xpdf('r4')"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/><path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/></svg>PDF A4</button></div>
+  <div class="g2" id="r4">
+    <div class="cc"><div class="cch"><h3>DAILY DHU% TREND</h3><span class="mtag">SEWING vs FINISHING</span></div><div class="ccb"><canvas id="cDaily"></canvas></div></div>
+    <div class="cc"><div class="cch"><h3>DAILY PRODUCTION EFFICIENCY</h3><span class="mtag">%</span></div><div class="ccb"><canvas id="cDailyEff"></canvas></div></div>
   </div>
-  <div id="r4">
+
+  <!-- ROW 5: Staff Performance -->
+  <div class="sh"><div class="st">🏆 STAFF PERFORMANCE</div><button class="btn-pdf" onclick="xpdf('r5')"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/><path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/></svg>PDF A4</button></div>
+  <div id="r5">
     <div class="rtabs">
-      <div class="rtab on" onclick="rTab('all',this)">All Roles</div>
-      <div class="rtab" onclick="rTab('Line Quality',this)">Line Quality</div>
+      <div class="rtab on" onclick="rTab('all',this)">All</div>
       <div class="rtab" onclick="rTab('QI',this)">QI</div>
+      <div class="rtab" onclick="rTab('Line Quality',this)">Line Quality</div>
       <div class="rtab" onclick="rTab('Controller',this)">Controller</div>
       <div class="rtab" onclick="rTab('Floor IC',this)">Floor IC</div>
     </div>
     <div class="cc">
-      <div class="cc-head"><h3>INDIVIDUAL PERFORMANCE BOARD</h3><span class="mtag" id="pCnt">0 STAFF</span></div>
+      <div class="cch"><h3>INDIVIDUAL PERFORMANCE BOARD</h3><span class="mtag" id="pCnt">0 STAFF</span></div>
       <div style="overflow-x:auto">
-        <table class="ptable">
+        <table class="ptbl">
           <thead><tr>
-            <th>#</th><th>Staff ID</th><th>Name</th><th>Role</th><th>Unit</th><th>Line(s)</th>
-            <th>Checked</th><th>Defects</th><th>Sewing DHU%</th><th>Check Rate%</th>
-            <th>Prod Eff%</th><th>Performance</th><th>Grade</th>
+            <th>#</th><th>Staff ID</th><th>Name</th><th>Role</th>
+            <th>Unit</th><th>Line</th><th>Score</th><th>Grade</th><th>Key Metric</th>
           </tr></thead>
           <tbody id="pBody"></tbody>
         </table>
@@ -330,512 +305,622 @@ select:focus,select:hover{border-color:var(--accent)}
     </div>
   </div>
 
-  <!-- ROW 5: Controller & Floor IC Summary -->
-  <div class="sec-head">
-    <div class="sec-title">🎯 CONTROLLER & FLOOR IC SUMMARY</div>
-    <button class="btn-pdf" onclick="xpdf('r5')">
-      <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/><path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/></svg>
-      PDF A4
-    </button>
-  </div>
-  <div class="g2" id="r5">
-    <div class="cc"><div class="cc-head"><h3>CONTROLLER PERFORMANCE</h3><span class="mtag">BY LINES COVERED</span></div><div class="cc-body"><canvas id="cCtrl"></canvas></div></div>
-    <div class="cc"><div class="cc-head"><h3>FLOOR IC PERFORMANCE</h3><span class="mtag">BY LINES COVERED</span></div><div class="cc-body"><canvas id="cFIC"></canvas></div></div>
+  <!-- ROW 6: Controller + Floor IC -->
+  <div class="sh"><div class="st">🎯 CONTROLLER & FLOOR IC</div><button class="btn-pdf" onclick="xpdf('r6')"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/><path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/></svg>PDF A4</button></div>
+  <div class="g2" id="r6">
+    <div class="cc"><div class="cch"><h3>CONTROLLER DHU%</h3><span class="mtag">COMBINED LINES</span></div><div class="ccb"><canvas id="cCtrl"></canvas></div></div>
+    <div class="cc"><div class="cch"><h3>FLOOR IC DHU%</h3><span class="mtag">COMBINED LINES</span></div><div class="ccb"><canvas id="cFIC"></canvas></div></div>
   </div>
 
-  <!-- ROW 6: Alerts -->
-  <div class="sec-head">
-    <div class="sec-title">🚨 ALERTS & FLAGS</div>
-    <button class="btn-pdf" onclick="xpdf('r6')">
-      <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/><path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/></svg>
-      PDF A4
-    </button>
-  </div>
-  <div class="alerts" id="r6"></div>
+  <!-- ROW 7: Alerts -->
+  <div class="sh"><div class="st">🚨 ALERTS & FLAGS</div><button class="btn-pdf" onclick="xpdf('r7')"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/><path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/></svg>PDF A4</button></div>
+  <div class="alrts" id="r7"></div>
 
-</div><!-- end mainWrap -->
+</div><!-- .main -->
 
-<!-- FOOTER -->
 <div class="footer">
-  <div class="ftxt">DHU Quality Management System · AppSheet → Google Sheet → Dashboard</div>
-  <div class="ftxt" id="fSheet">Configure SHEET_ID to connect</div>
+  <div class="ftxt">DHU Quality Management System · Summary Sheets → Fast Dashboard</div>
+  <div class="ftxt" id="fSheet">—</div>
 </div>
 
+</div><!-- #wrap -->
+
 <script>
-// ══════════════════════════════════════════════════════════════
-// ⚙️  CONFIG — সেখানে তোমার Google Sheet ID বসাও
-// ══════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════
+// ⚙️  CONFIG
+// ══════════════════════════════════════════════════════════
 const CFG = {
-  // ⚠️ নিচের YOUR_GOOGLE_SHEET_ID_HERE এর জায়গায় তোমার Sheet ID বসাও
-  // Example: "1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms"
-  SHEET_ID: "1ujcdhQFSlZzOp-5xDPMnrbX8F0ISjsYKoyyXrpzBGPw",
+  // ⚠️ তোমার Google Sheet ID এখানে বসাও
+  SHEET_ID: "YOUR_GOOGLE_SHEET_ID_HERE",
 
-  // Google Sheet-এ Sheet নামগুলো হুবহু এরকম থাকতে হবে
-  HOURLY:     "Hourly_Quality_Data",
-  FINISHING:  "Finishing_DHU_Data",
-  STAFF:      "Staff_Master",
-  PERF:       "Performance_Summary",
+  // Summary Sheets (Apps Script তৈরি করবে)
+  SHEETS: {
+    DAILY:   "Sum_Daily",
+    UNIT:    "Sum_Unit",
+    LINE:    "Sum_Line",
+    STAFF:   "Sum_Staff",
+    AO:      "Sum_AO",
+    DEFECT:  "Sum_Defect",
+    HOURLY:  "Sum_Hourly",
+    ALERT:   "Sum_Alert",
+    META:    "Sum_Meta",
+  },
 
-  // Targets
-  SEW_DHU:    2.5,
-  FIN_DHU:    3.0,
-  PROD_EFF:   85,
-  BAL_WARN:   50,
-
-  // Auto refresh: 5 মিনিট
-  INTERVAL:   5 * 60 * 1000,
+  TARGET: { SEW_DHU:2.5, FIN_DHU:3.0, PROD_EFF:85 },
+  REFRESH: 5 * 60 * 1000,
 };
 
-// Column names — তোমার Excel file-এর সাথে exact match
-const COL = {
-  date:       'Date',
-  hour:       'Hour_Slot',
-  unit:       'Unit_No',
-  line:       'Line_No',
-  staffId:    'Staff_ID',
-  staffName:  'Staff_Name',
-  role:       'Role',
-  ao:         'AO_Number',
-  style:      'Style_No',
-  prodT:      'Prod_Target_Hr',
-  prodA:      'Prod_Actual',
-  qcT:        'Quality_Target_Hr',
-  qcA:        'Quality_Checked',
-  defQty:     'Defect_Qty',
-  defType:    'Defect_Type_Primary',
-  balance:    'Table_Balance_Prev',
-  finInsp:    'Inspected_Qty',
-  finDef:     'Defect_Qty',   // Finishing sheet
+// ══════════════════════════════════════════════════════════
+// STATE — only summary data, never raw
+// ══════════════════════════════════════════════════════════
+let D = {
+  daily:[], unit:[], line:[], staff:[], ao:[],
+  defect:[], hourly:[], alert:[], meta:[],
 };
-
-// ══════════════════════════════════════════════════════════════
-// STATE
-// ══════════════════════════════════════════════════════════════
-let RAW = [], FIN = [], STAFF = [], PERF_RAW = [];
-let FILT = [];
 let charts = {};
-let roleF = 'all';
-let isDemo = false;
+let roleF  = 'all';
+let fUnit='', fLine='', fAO='', fRole='', fDate='';
+let loadStart = 0;
 
-// ══════════════════════════════════════════════════════════════
-// CSV URL
-// ══════════════════════════════════════════════════════════════
-function csvUrl(sheet) {
+// ══════════════════════════════════════════════════════════
+// FETCH
+// ══════════════════════════════════════════════════════════
+function csvUrl(sheet){
   return `https://docs.google.com/spreadsheets/d/${CFG.SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheet)}`;
 }
 
-// ══════════════════════════════════════════════════════════════
-// LOAD
-// ══════════════════════════════════════════════════════════════
+async function fetchSheet(name, progress){
+  setStep(`Loading ${name}...`, progress);
+  const res = await fetch(csvUrl(name));
+  if(!res.ok) throw new Error(`Cannot fetch sheet: "${name}" (${res.status}). Make sure Apps Script has run and Summary sheets exist.`);
+  const text = await res.text();
+  if(text.includes('Moved Temporarily')||text.includes('Sign in'))
+    throw new Error(`Sheet "${name}" is not published. Go to File → Share → Publish to Web.`);
+  const parsed = Papa.parse(text, {header:true, skipEmptyLines:true, dynamicTyping:true});
+  return parsed.data.filter(r => Object.values(r).some(v => v!==null && v!==''));
+}
+
+function setStep(msg, pct){
+  document.getElementById('loadStep').textContent = msg;
+  document.getElementById('loadBar').style.width = pct + '%';
+}
+
+// ══════════════════════════════════════════════════════════
+// LOAD — only 9 small summary sheets (fast!)
+// ══════════════════════════════════════════════════════════
 async function loadAll(){
+  loadStart = performance.now();
   document.getElementById('ldr').classList.remove('off');
+  document.getElementById('loadBar').style.width = '0%';
 
   if(CFG.SHEET_ID === 'YOUR_GOOGLE_SHEET_ID_HERE'){
-    showError('Sheet ID Not Configured',
-      'Dashboard-এর HTML file-এ CFG.SHEET_ID তে তোমার Google Sheet ID বসাও।
-Sheet URL: https://docs.google.com/spreadsheets/d/[THIS_ID]/edit');
+    showErr('Sheet ID Not Set',
+      'CFG.SHEET_ID তে তোমার Google Sheet ID বসাও।',
+      '1. Google Sheet URL থেকে ID copy করো\n2. Dashboard HTML file এ CFG.SHEET_ID = "ID HERE" বসাও\n3. File save করো ও reload করো');
     return;
   }
 
   try {
-    const [r1,r2,r3,r4,r5] = await Promise.all([
-      fetchSheet(CFG.SHEETS.HOURLY),
-      fetchSheet(CFG.SHEETS.FINISHING),
-      fetchSheet(CFG.SHEETS.PERFORMANCE),
-      fetchSheet(CFG.SHEETS.LINE_MAP),
-      fetchSheet(CFG.SHEETS.AO),
+    // Parallel fetch — সব summary একসাথে
+    const [daily,unit,line,staff,ao,defect,hourly,alert,meta] = await Promise.all([
+      fetchSheet(CFG.SHEETS.DAILY,  15),
+      fetchSheet(CFG.SHEETS.UNIT,   25),
+      fetchSheet(CFG.SHEETS.LINE,   35),
+      fetchSheet(CFG.SHEETS.STAFF,  45),
+      fetchSheet(CFG.SHEETS.AO,     55),
+      fetchSheet(CFG.SHEETS.DEFECT, 65),
+      fetchSheet(CFG.SHEETS.HOURLY, 75),
+      fetchSheet(CFG.SHEETS.ALERT,  85),
+      fetchSheet(CFG.SHEETS.META,   95),
     ]);
 
-    RAW=r1; FIN=r2; PERF=r3; LMAP=r4; AO_DATA=r5;
+    D = {daily,unit,line,staff,ao,defect,hourly,alert,meta};
 
-    if(RAW.length === 0) throw new Error('Hourly_Quality_Data sheet is empty.');
+    if(D.daily.length===0 && D.unit.length===0)
+      throw new Error('Summary sheets are empty. Run Apps Script first: Extensions → Apps Script → Run → generateAllSummaries');
 
-    document.getElementById('mainWrap').style.display = 'block';
-    document.getElementById('errState').classList.remove('show');
-    FILT = [...RAW];
+    setStep('Rendering...', 100);
+
+    document.getElementById('wrap').style.display = 'block';
+    document.getElementById('errState').classList.remove('on');
 
     populateFilters();
-    updateHeroStats();
+    setHero();
     renderAll();
 
-    document.getElementById('updTxt').textContent = 'Updated: '+new Date().toLocaleTimeString();
-    document.getElementById('fSheet').textContent = 'Sheet: '+CFG.SHEET_ID.substring(0,18)+'...';
+    const elapsed = ((performance.now() - loadStart)/1000).toFixed(1);
+    document.getElementById('speedBadge').textContent = `⚡ ${elapsed}s`;
+    document.getElementById('updTxt').textContent = 'Updated: ' + new Date().toLocaleTimeString();
+    document.getElementById('fSheet').textContent = 'Sheet: ' + CFG.SHEET_ID.substring(0,18) + '...';
 
   } catch(e){
-    showError('Data Load Failed', e.message + '
-
-Google Sheet টি Publish to Web করা আছে কিনা দেখো।');
+    showErr('Load Failed', e.message,
+      '✅ Apps Script চলেছে কিনা দেখো (Sum_Daily sheet আছে কিনা)\n✅ Sheet Publish to Web করা আছে কিনা\n✅ Sheet ID সঠিক কিনা');
     console.error(e);
   }
 
   document.getElementById('ldr').classList.add('off');
 }
 
-// ══════════════════════════════════════════════════════════════
+function showErr(title, msg, fix){
+  document.getElementById('ldr').classList.add('off');
+  document.getElementById('errState').classList.add('on');
+  document.getElementById('errTtl').textContent = title;
+  document.getElementById('errMsg').textContent = msg;
+  document.getElementById('errBox').textContent = fix;
+  document.getElementById('wrap').style.display = 'none';
+}
+
+// ══════════════════════════════════════════════════════════
+// HERO STATS — from Meta sheet
+// ══════════════════════════════════════════════════════════
+function setHero(){
+  const get = k => { const r=D.meta.find(m=>m.Key===k); return r?r.Value:'—'; };
+  setText('hUnits', get('Active_Units'));
+  setText('hLines', get('Active_Lines'));
+  setText('hStaff', get('Active_Staff'));
+  setText('hRows',  Number(get('Total_Rows')||0).toLocaleString());
+  const from=get('Date_From'), to=get('Date_To');
+  document.getElementById('heroMeta').textContent =
+    `7 UNITS · ${get('Active_Lines')} LINES · Data: ${from} → ${to}`;
+}
+
+// ══════════════════════════════════════════════════════════
 // FILTERS
-// ══════════════════════════════════════════════════════════════
-function populateFilters() {
-  const uniq = (k) => [...new Set(RAW.map(r=>r[k]||'').filter(Boolean))].sort();
-  fillSel('fLine', uniq(COL.line),  'All Lines');
-  fillSel('fAO',   uniq(COL.ao),    'All AO');
-  fillSel('fDate', uniq(COL.date).reverse(), 'All Dates');
+// ══════════════════════════════════════════════════════════
+function populateFilters(){
+  const units = D.unit.map(r=>String(r.Unit_No||'')).filter(Boolean).sort();
+  const lines = D.line.map(r=>String(r.Line_No||'')).filter(Boolean);
+  const uLines= [...new Set(lines)].sort();
+  const aos   = D.ao.map(r=>String(r.AO_Number||'')).filter(Boolean).sort();
+  const dates = D.daily.map(r=>String(r.Date||'').substring(0,10)).filter(Boolean).sort().reverse();
 
-  // Hero stats
-  document.getElementById('hLines').textContent = uniq(COL.line).length;
-  document.getElementById('hStaff').textContent = uniq(COL.staffId).length;
-  document.getElementById('hRows').textContent  = RAW.length.toLocaleString();
+  fillSel('fUnit', units, 'All Units');
+  fillSel('fLine', uLines,'All Lines');
+  fillSel('fAO',   aos,   'All AO');
+  fillSel('fDate', dates, 'All Dates');
 }
-function fillSel(id, vals, ph) {
-  const s = document.getElementById(id), cur = s.value;
-  s.innerHTML = `<option value="">${ph}</option>` + vals.map(v=>`<option${v===cur?' selected':''}>${v}</option>`).join('');
+
+function fillSel(id, vals, ph){
+  const s=document.getElementById(id), cur=s.value;
+  s.innerHTML=`<option value="">${ph}</option>`+
+    vals.map(v=>`<option value="${v}"${String(v)===String(cur)?' selected':''}>${v}</option>`).join('');
 }
-function applyF() {
-  const u=g('fUnit'), l=g('fLine'), a=g('fAO'), ro=g('fRole'), d=g('fDate');
-  // Update line dropdown when unit changes
-  const uSel = g('fUnit');
-  if(uSel){
-    const filteredLines = [...new Set(RAW.filter(r=>String(r.Unit_No||'')===String(uSel)).map(r=>r.Line_No||'').filter(Boolean))].sort();
-    const curLine = g('fLine');
-    fillSel('fLine', filteredLines, 'All Lines');
-    if(curLine && filteredLines.includes(curLine)) document.getElementById('fLine').value = curLine;
+
+function applyF(){
+  fUnit=g('fUnit'); fLine=g('fLine'); fAO=g('fAO'); fRole=g('fRole'); fDate=g('fDate');
+
+  // Update line options based on unit
+  if(fUnit){
+    const filtLines=[...new Set(D.line.filter(r=>String(r.Unit_No||'')===fUnit).map(r=>String(r.Line_No||'')).filter(Boolean))].sort();
+    fillSel('fLine', filtLines, 'All Lines');
+    if(fLine) document.getElementById('fLine').value=fLine;
   } else {
-    const allLines = [...new Set(RAW.map(r=>r.Line_No||'').filter(Boolean))].sort();
-    const curLine = g('fLine');
+    const allLines=[...new Set(D.line.map(r=>String(r.Line_No||'')).filter(Boolean))].sort();
     fillSel('fLine', allLines, 'All Lines');
-    if(curLine) document.getElementById('fLine').value = curLine;
   }
+  fLine=g('fLine');
 
-  FILT = RAW.filter(r => {
-    if(u  && String(r[COL.unit]||'').trim() !== u)  return false;
-    if(l  && (r[COL.line]||'') !== l)  return false;
-    if(a  && (r[COL.ao]||'')   !== a)  return false;
-    if(ro && (r[COL.role]||'') !== ro) return false;
-    if(d  && (r[COL.date]||'') !== d)  return false;
-    return true;
-  });
+  // Show filter info
+  const fi=document.getElementById('fInfo');
+  const parts=[fUnit&&`Unit ${fUnit}`,fLine&&`Line ${fLine}`,fAO&&`AO ${fAO}`,fRole,fDate].filter(Boolean);
+  if(parts.length){ fi.style.display='inline-flex'; fi.textContent='Showing: '+parts.join(' · '); }
+  else             { fi.style.display='none'; }
+
   renderAll();
 }
-function clearF() {
+
+function clearF(){
+  fUnit=fLine=fAO=fRole=fDate='';
   ['fUnit','fLine','fAO','fRole','fDate'].forEach(id=>document.getElementById(id).value='');
-  FILT=[...RAW]; renderAll();
+  document.getElementById('fInfo').style.display='none';
+  populateFilters();
+  renderAll();
 }
-function g(id){return document.getElementById(id).value}
 
-// ══════════════════════════════════════════════════════════════
+function g(id){return document.getElementById(id).value;}
+
+// ══════════════════════════════════════════════════════════
+// FILTER HELPERS — filter summary rows
+// ══════════════════════════════════════════════════════════
+function filtLine(rows){
+  return rows.filter(r=>{
+    if(fUnit && String(r.Unit_No||'')!==fUnit) return false;
+    if(fLine && String(r.Line_No||'')!==fLine) return false;
+    return true;
+  });
+}
+function filtUnit(rows){ return fUnit ? rows.filter(r=>String(r.Unit_No||'')===fUnit) : rows; }
+function filtAO(rows)  { return fAO   ? rows.filter(r=>String(r.AO_Number||'')===fAO) : rows; }
+function filtDate(rows){ return fDate ? rows.filter(r=>String(r.Date||'').substring(0,10)===fDate) : rows; }
+function filtStaff(rows){
+  return rows.filter(r=>{
+    if(fUnit && String(r.Unit_No||'')!==fUnit) return false;
+    if(fLine && String(r.Line_No||'')!==fLine) return false;
+    if(fRole && String(r.Role||'')!==fRole) return false;
+    return true;
+  });
+}
+
+// ══════════════════════════════════════════════════════════
 // RENDER ALL
-// ══════════════════════════════════════════════════════════════
-function renderAll() {
-  renderKPIs(); renderDHUTrend(); renderProd(); renderPareto();
-  renderUnitDHU(); renderAO(); renderHeatmap();
-  renderPerf(); renderCtrlFIC(); renderAlerts();
+// ══════════════════════════════════════════════════════════
+function renderAll(){
+  renderKPIs();
+  renderHourlyTrend();
+  renderProd();
+  renderPareto();
+  renderUnitDHU();
+  renderAO();
+  renderHeatmap();
+  renderDailyTrend();
+  renderDailyEff();
+  renderPerf();
+  renderCtrlFIC();
+  renderAlerts();
 }
 
-// ══════════════════════════════════════════════════════════════
-// KPIs
-// ══════════════════════════════════════════════════════════════
-function renderKPIs() {
-  const chk   = sum(FILT, COL.qcA);
-  const def   = sum(FILT, COL.defQty);
-  const prodT = sum(FILT, COL.prodT);
-  const prodA = sum(FILT, COL.prodA);
-  const bal   = sum(FILT, COL.balance);
-  const flags = FILT.filter(r => n(r[COL.qcA]) > n(r[COL.prodA]) && n(r[COL.prodA]) > 0).length;
-  const dhu   = chk  > 0 ? def   / chk   * 100 : 0;
-  const eff   = prodT > 0 ? prodA / prodT * 100 : 0;
+// ══════════════════════════════════════════════════════════
+// KPIs — from Unit + Daily + Meta summaries
+// ══════════════════════════════════════════════════════════
+function renderKPIs(){
+  const uRows = filtUnit(filtDate(D.unit));
+  const dRows = filtDate(D.daily);
 
-  const finDef  = sum(FIN, 'Defect_Qty');
-  const finInsp = sum(FIN, 'Inspected_Qty');
-  const finDHU  = finInsp > 0 ? finDef / finInsp * 100 : 0;
+  // If unit filtered, use unit summary; else aggregate daily
+  const totChk   = uRows.length ? sumF(uRows,'QC_Checked')   : sumF(dRows,'QC_Checked');
+  const totDef   = uRows.length ? sumF(uRows,'Defect_Qty')   : sumF(dRows,'Defect_Qty');
+  const totProdT = uRows.length ? sumF(uRows,'Prod_Target')  : sumF(dRows,'Prod_Target');
+  const totProdA = uRows.length ? sumF(uRows,'Prod_Actual')  : sumF(dRows,'Prod_Actual');
+  const totBal   = sumF(filtLine(D.line),'Table_Balance_Max');
+  const totFlags = uRows.length ? sumF(uRows,'False_Reports'): sumF(dRows,'False_Reports');
+  const totDays  = D.daily.length;
+
+  const finRows  = filtAO(filtUnit(filtDate(D.ao)));
+  const totFinInsp=sumF(finRows,'Fin_Inspected');
+  const totFinDef =sumF(finRows,'Fin_Defect');
+
+  const dhu  = totChk   > 0 ? totDef   / totChk   * 100 : 0;
+  const eff  = totProdT > 0 ? totProdA / totProdT * 100 : 0;
+  const finDHU = totFinInsp > 0 ? totFinDef / totFinInsp * 100 : 0;
 
   setText('kDHU', dhu.toFixed(1)+'%');
   setText('kFin',  finDHU.toFixed(1)+'%');
   setText('kEff',  eff.toFixed(1)+'%');
-  setText('kDef',  def.toLocaleString());
-  setText('kBal',  bal.toLocaleString());
-  setText('kFlg',  flags);
+  setText('kDef',  totDef.toLocaleString());
+  setText('kBal',  Math.round(totBal).toLocaleString());
+  setText('kFlg',  Math.round(totFlags));
+  setText('kDays', totDays);
 
-  const te = document.getElementById('kDHUt');
-  te.innerHTML = dhu <= CFG.SEW_DHU
-    ? '<span style="color:var(--green);font-family:var(--mono);font-size:10px">✓ On Target</span>'
-    : `<span style="color:var(--red);font-family:var(--mono);font-size:10px">↑ +${(dhu-CFG.SEW_DHU).toFixed(1)}%</span>`;
+  const te=document.getElementById('kDHUt');
+  if(dhu===0)        te.innerHTML='<span style="color:var(--muted);font-family:var(--mono);font-size:9px">No data</span>';
+  else if(dhu<=CFG.TARGET.SEW_DHU) te.innerHTML='<span style="color:var(--green);font-family:var(--mono);font-size:9px">✓ On Target</span>';
+  else               te.innerHTML=`<span style="color:var(--red);font-family:var(--mono);font-size:9px">↑ +${(dhu-CFG.TARGET.SEW_DHU).toFixed(1)}%</span>`;
 }
 
-// ══════════════════════════════════════════════════════════════
-// CHART: DHU Trend
-// ══════════════════════════════════════════════════════════════
-function renderDHUTrend() {
-  const slots = ['08:00-09:00','09:00-10:00','10:00-11:00','11:00-12:00',
-                 '13:00-14:00','14:00-15:00','15:00-16:00','16:00-17:00'];
-  const lbl  = slots.map(s=>s.split('-')[0]);
-  const dhus = slots.map(s => {
-    const rows = FILT.filter(r=>(r[COL.hour]||'')===s);
-    const c=sumA(rows,COL.qcA), d=sumA(rows,COL.defQty);
-    return c>0 ? +(d/c*100).toFixed(2) : null;
-  });
+// ══════════════════════════════════════════════════════════
+// CHART: Hourly DHU Trend (from Sum_Hourly)
+// ══════════════════════════════════════════════════════════
+function renderHourlyTrend(){
+  const rows  = D.hourly;
+  const lbls  = rows.map(r=>String(r.Hour_Slot||'').split('-')[0]);
+  const dhus  = rows.map(r=>n(r.Sewing_DHU_Pct)||null);
+  const hasData = dhus.some(v=>v!==null && v>0);
+
   kill('cDHU');
-  charts.dhu = new Chart(document.getElementById('cDHU'),{
+  const canvas=document.getElementById('cDHU');
+  if(!hasData){ canvas.parentElement.innerHTML=ndHTML(); return; }
+
+  charts.dhu=new Chart(canvas,{
     type:'line',
-    data:{labels:lbl,datasets:[
-      {label:'DHU%',data:dhus,borderColor:'#00D4FF',backgroundColor:'rgba(0,212,255,.1)',borderWidth:2.5,pointRadius:5,pointBackgroundColor:'#00D4FF',fill:true,tension:.4,spanGaps:true},
-      {label:'Target',data:slots.map(()=>CFG.SEW_DHU),borderColor:'rgba(255,68,68,.6)',borderDash:[6,4],borderWidth:1.5,pointRadius:0,fill:false}
+    data:{labels:lbls, datasets:[
+      {label:'DHU%', data:dhus, borderColor:'#00D4FF', backgroundColor:'rgba(0,212,255,.1)',
+       borderWidth:2.5, pointRadius:5, pointBackgroundColor:'#00D4FF', fill:true, tension:.4, spanGaps:true},
+      {label:'Target', data:rows.map(()=>CFG.TARGET.SEW_DHU),
+       borderColor:'rgba(255,68,68,.55)', borderDash:[6,4], borderWidth:1.5, pointRadius:0, fill:false},
     ]},
-    options:opts('DHU %',true)
+    options: oLine('DHU %', true),
   });
 }
 
-// ══════════════════════════════════════════════════════════════
-// CHART: Production vs QC
-// ══════════════════════════════════════════════════════════════
-function renderProd() {
-  const slots = ['08:00-09:00','09:00-10:00','10:00-11:00','11:00-12:00',
-                 '13:00-14:00','14:00-15:00','15:00-16:00','16:00-17:00'];
-  const lbl  = slots.map(s=>s.split('-')[0]);
-  const prod = slots.map(s=>sumA(FILT.filter(r=>(r[COL.hour]||'')===s),COL.prodA));
-  const qc   = slots.map(s=>sumA(FILT.filter(r=>(r[COL.hour]||'')===s),COL.qcA));
+// ══════════════════════════════════════════════════════════
+// CHART: Production vs QC (from Sum_Hourly)
+// ══════════════════════════════════════════════════════════
+function renderProd(){
+  const rows = D.hourly;
+  const lbls = rows.map(r=>String(r.Hour_Slot||'').split('-')[0]);
+  const prod = rows.map(r=>n(r.Prod_Actual));
+  const qc   = rows.map(r=>n(r.QC_Checked));
+  const hasData = prod.some(v=>v>0)||qc.some(v=>v>0);
+
   kill('cProd');
-  charts.prod = new Chart(document.getElementById('cProd'),{
+  const canvas=document.getElementById('cProd');
+  if(!hasData){ canvas.parentElement.innerHTML=ndHTML(); return; }
+
+  charts.prod=new Chart(canvas,{
     type:'bar',
-    data:{labels:lbl,datasets:[
-      {label:'Production',data:prod,backgroundColor:'rgba(0,230,118,.7)',borderRadius:4},
-      {label:'QC Checked',data:qc,backgroundColor:'rgba(0,212,255,.7)',borderRadius:4}
+    data:{labels:lbls, datasets:[
+      {label:'Production', data:prod, backgroundColor:'rgba(0,230,118,.7)', borderRadius:4},
+      {label:'QC Checked', data:qc,   backgroundColor:'rgba(0,212,255,.7)', borderRadius:4},
     ]},
-    options:opts('Pieces',true)
+    options: oBar('Pieces', true),
   });
 }
 
-// ══════════════════════════════════════════════════════════════
-// CHART: Pareto
-// ══════════════════════════════════════════════════════════════
-function renderPareto() {
-  const mp={};
-  FILT.forEach(r=>{
-    const t=(r[COL.defType]||'').trim();
-    const q=n(r[COL.defQty]);
-    if(!t||q===0) return;
-    mp[t]=(mp[t]||0)+q;
-  });
-  const sorted=Object.entries(mp).sort((a,b)=>b[1]-a[1]).slice(0,8);
-  const lbls=sorted.map(([k])=>k.replace(/^D\d+\s*-\s*/,''));
-  const vals=sorted.map(([,v])=>v);
-  const tot=vals.reduce((a,b)=>a+b,0);
-  let cum=0;
-  const cpct=vals.map(v=>{cum+=v;return tot>0?+(cum/tot*100).toFixed(1):0;});
+// ══════════════════════════════════════════════════════════
+// CHART: Pareto (from Sum_Defect)
+// ══════════════════════════════════════════════════════════
+function renderPareto(){
+  const rows = fLine
+    ? D.defect  // Line filtered: still use overall defect summary
+    : D.defect;
+  const top  = rows.slice(0,8);
   kill('cPareto');
-  charts.pareto=new Chart(document.getElementById('cPareto'),{
+  const canvas=document.getElementById('cPareto');
+  if(!top.length){ canvas.parentElement.innerHTML=ndHTML(); return; }
+
+  charts.pareto=new Chart(canvas,{
     type:'bar',
-    data:{labels:lbls,datasets:[
-      {label:'Count',data:vals,backgroundColor:'rgba(255,68,68,.75)',borderRadius:4,yAxisID:'y'},
-      {label:'Cumulative%',data:cpct,type:'line',borderColor:'#FFD600',borderWidth:2,pointRadius:4,pointBackgroundColor:'#FFD600',fill:false,yAxisID:'y2',tension:.3}
+    data:{labels:top.map(r=>r.Defect_Type||'?'), datasets:[
+      {label:'Count', data:top.map(r=>n(r.Count)), backgroundColor:'rgba(255,68,68,.75)', borderRadius:4, yAxisID:'y'},
+      {label:'Cumulative%', data:top.map(r=>n(r.Cumulative_Pct)), type:'line',
+       borderColor:'#FFD600', borderWidth:2, pointRadius:4, pointBackgroundColor:'#FFD600',
+       fill:false, yAxisID:'y2', tension:.3},
     ]},
-    options:{...opts('Count',true),scales:{x:sX(),y:{...sY('Count'),position:'left'},y2:{...sY('%'),position:'right',min:0,max:100,grid:{display:false}}}}
+    options:{
+      responsive:true, maintainAspectRatio:true,
+      plugins:{legend:{display:true,labels:{color:'#5A7A9A',font:{family:'JetBrains Mono',size:10},boxWidth:10}},tooltip:tOpt()},
+      scales:{x:sX(), y:{...sY('Count'),position:'left'}, y2:{...sY('%'),position:'right',min:0,max:100,grid:{display:false}}},
+    }
   });
 }
 
-// ══════════════════════════════════════════════════════════════
-// CHART: Unit DHU
-// ══════════════════════════════════════════════════════════════
-function renderUnitDHU() {
+// ══════════════════════════════════════════════════════════
+// CHART: Unit DHU (from Sum_Unit — always all 7 units)
+// ══════════════════════════════════════════════════════════
+function renderUnitDHU(){
   const units=[1,2,3,4,5,6,7];
   const dhus=units.map(u=>{
-    const rows=RAW.filter(r=>String(r[COL.unit]||'').trim()===String(u));
-    const c=sumA(rows,COL.qcA),d=sumA(rows,COL.defQty);
-    return c>0?+(d/c*100).toFixed(2):0;
+    const r=D.unit.find(x=>String(x.Unit_No||'')===String(u));
+    return r ? n(r.Sewing_DHU_Pct) : 0;
   });
-  const colors=dhus.map(d=>d<=CFG.SEW_DHU?'rgba(0,230,118,.8)':d<=CFG.SEW_DHU*1.5?'rgba(255,149,0,.8)':'rgba(255,68,68,.8)');
+  const colors=dhus.map(d=>d===0?'rgba(90,122,154,.3)':d<=CFG.TARGET.SEW_DHU?'rgba(0,230,118,.8)':d<=CFG.TARGET.SEW_DHU*1.5?'rgba(255,149,0,.8)':'rgba(255,68,68,.8)');
+
   kill('cUnit');
   charts.unit=new Chart(document.getElementById('cUnit'),{
     type:'bar',
-    data:{labels:units.map(u=>`Unit ${u}`),datasets:[{label:'DHU%',data:dhus,backgroundColor:colors,borderRadius:6}]},
-    options:opts('DHU %',false)
+    data:{labels:units.map(u=>`Unit ${u}`), datasets:[{label:'DHU%',data:dhus,backgroundColor:colors,borderRadius:6}]},
+    options:{...oBar('DHU%',false), plugins:{legend:{display:false},tooltip:{...tOpt(),callbacks:{label:ctx=>ctx.raw===0?'No data':`DHU: ${ctx.raw}%`}}}},
   });
 }
 
-// ══════════════════════════════════════════════════════════════
-// CHART: AO Compare
-// ══════════════════════════════════════════════════════════════
-function renderAO() {
-  const aos=[...new Set(RAW.map(r=>r[COL.ao]||'').filter(Boolean))].slice(0,8);
-  const sd=aos.map(a=>{const rows=RAW.filter(r=>r[COL.ao]===a);const c=sumA(rows,COL.qcA),d=sumA(rows,COL.defQty);return c>0?+(d/c*100).toFixed(2):0;});
-  const fd=aos.map(a=>{const rows=FIN.filter(r=>(r['AO_Number']||r['AO Number']||'')===a);const i=sumA(rows,'Inspected_Qty'),d=sumA(rows,'Defect_Qty');return i>0?+(d/i*100).toFixed(2):0;});
+// ══════════════════════════════════════════════════════════
+// CHART: AO Compare (from Sum_AO)
+// ══════════════════════════════════════════════════════════
+function renderAO(){
+  const rows=filtAO(filtUnit(D.ao)).slice(0,10);
   kill('cAO');
-  charts.ao=new Chart(document.getElementById('cAO'),{
+  const canvas=document.getElementById('cAO');
+  if(!rows.length){ canvas.parentElement.innerHTML=ndHTML(); return; }
+
+  charts.ao=new Chart(canvas,{
     type:'bar',
-    data:{labels:aos,datasets:[
-      {label:'Sewing DHU%',data:sd,backgroundColor:'rgba(0,212,255,.75)',borderRadius:4},
-      {label:'Finishing DHU%',data:fd,backgroundColor:'rgba(255,68,68,.75)',borderRadius:4}
+    data:{labels:rows.map(r=>r.AO_Number||'?'), datasets:[
+      {label:'Sewing DHU%',   data:rows.map(r=>n(r.Sewing_DHU_Pct)),   backgroundColor:'rgba(0,212,255,.75)', borderRadius:4},
+      {label:'Finishing DHU%',data:rows.map(r=>n(r.Finishing_DHU_Pct)),backgroundColor:'rgba(255,68,68,.75)',  borderRadius:4},
     ]},
-    options:opts('DHU %',true)
+    options: oBar('DHU %', true),
   });
 }
 
-// ══════════════════════════════════════════════════════════════
-// HEATMAP: Table Balance
-// ══════════════════════════════════════════════════════════════
-function renderHeatmap() {
+// ══════════════════════════════════════════════════════════
+// HEATMAP: Line DHU (from Sum_Line)
+// ══════════════════════════════════════════════════════════
+function renderHeatmap(){
   const wrap=document.getElementById('hmWrap');
-  const slots=['08:00-09:00','09:00-10:00','10:00-11:00','11:00-12:00','13:00-14:00','14:00-15:00','15:00-16:00','16:00-17:00'];
-  const slotLbl=slots.map(s=>s.split('-')[0]);
-  const lines=[...new Set(FILT.map(r=>r[COL.line]||'').filter(Boolean))].sort().slice(0,14);
-  if(!lines.length){wrap.innerHTML='<div style="padding:16px;font-family:var(--mono);font-size:11px;color:var(--muted)">No data</div>';return;}
+  const rows=filtUnit(filtLine(D.line));
+  if(!rows.length){ wrap.innerHTML=`<div class="nd"><div class="nd-ico">📊</div>No data for filter</div>`; return; }
 
-  let maxV=1;
-  FILT.forEach(r=>{const v=n(r[COL.balance]);if(v>maxV)maxV=v;});
-  const cw=Math.max(44,Math.floor((wrap.offsetWidth-70)/slots.length));
-
-  let h=`<div class="hm-inner" style="min-width:${cw*slots.length+66}px;padding:4px">`;
-  h+=`<div style="display:flex;gap:3px;margin-left:62px;margin-bottom:3px">`;
-  slotLbl.forEach(s=>h+=`<div class="hm-lbl" style="width:${cw}px">${s}</div>`);
-  h+='</div>';
-
-  lines.forEach(line=>{
-    h+=`<div style="display:flex;gap:3px;margin-bottom:3px;align-items:center">`;
-    h+=`<div class="hm-lbl" style="width:58px;text-align:right;padding-right:5px">${line}</div>`;
-    slots.forEach(slot=>{
-      const rows=FILT.filter(r=>(r[COL.line]||'')===line&&(r[COL.hour]||'')===slot);
-      const val=rows.length?sumA(rows,COL.balance):null;
-      const pct=val!==null?val/maxV:0;
-      const bg=val===null?'var(--border)':val===0?'rgba(0,230,118,.2)':val<=20?`rgba(0,212,255,${.2+pct*.5})`:val<=50?`rgba(255,149,0,${.3+pct*.4})`:`rgba(255,68,68,${.4+pct*.4})`;
-      const fc=val===null?'var(--muted2)':val>30?'#fff':'var(--text)';
-      h+=`<div class="hm-cell" style="width:${cw}px;background:${bg};color:${fc}" title="${line} | ${slot} | ${val??'—'} pcs">${val??'—'}</div>`;
-    });
-    h+='</div>';
+  // Group by unit for display
+  const byUnit={};
+  rows.forEach(r=>{
+    const u=String(r.Unit_No||''); const l=String(r.Line_No||'');
+    if(!u||!l) return;
+    if(!byUnit[u]) byUnit[u]=[];
+    byUnit[u].push(r);
   });
 
-  h+=`<div style="display:flex;gap:14px;margin-top:10px;margin-left:62px">
-    <div style="display:flex;align-items:center;gap:5px"><div style="width:12px;height:12px;border-radius:2px;background:rgba(0,230,118,.3)"></div><span style="font-family:var(--mono);font-size:9px;color:var(--muted)">0</span></div>
-    <div style="display:flex;align-items:center;gap:5px"><div style="width:12px;height:12px;border-radius:2px;background:rgba(0,212,255,.5)"></div><span style="font-family:var(--mono);font-size:9px;color:var(--muted)">1–20</span></div>
-    <div style="display:flex;align-items:center;gap:5px"><div style="width:12px;height:12px;border-radius:2px;background:rgba(255,149,0,.6)"></div><span style="font-family:var(--mono);font-size:9px;color:var(--muted)">21–50</span></div>
-    <div style="display:flex;align-items:center;gap:5px"><div style="width:12px;height:12px;border-radius:2px;background:rgba(255,68,68,.8)"></div><span style="font-family:var(--mono);font-size:9px;color:var(--muted)">&gt;50 ⚠</span></div>
+  let h=`<div style="padding:8px;overflow-x:auto">`;
+  Object.entries(byUnit).sort().forEach(([unit, lines])=>{
+    h+=`<div style="margin-bottom:10px">`;
+    h+=`<div style="font-family:var(--mono);font-size:9px;color:var(--accent);margin-bottom:4px;letter-spacing:.08em">UNIT ${unit}</div>`;
+    h+=`<div style="display:flex;flex-wrap:wrap;gap:4px">`;
+    lines.forEach(r=>{
+      const dhu=n(r.Sewing_DHU_Pct);
+      const bg = dhu===0?'var(--border)':dhu<=2.5?'rgba(0,230,118,.7)':dhu<=5?'rgba(255,149,0,.75)':'rgba(255,68,68,.8)';
+      const fc = dhu===0?'var(--muted2)':'#fff';
+      const lbl= String(r.Line_No||'').replace('L','');
+      h+=`<div class="hm-cell" style="width:52px;background:${bg};color:${fc};border-radius:5px;font-size:9px;flex-direction:column;gap:1px" title="Unit ${unit} | ${r.Line_No} | DHU: ${dhu}% | ${r.Status||''}">
+        <span style="font-size:8px;opacity:.7">L${lbl}</span>
+        <span>${dhu===0?'—':dhu+'%'}</span>
+      </div>`;
+    });
+    h+=`</div></div>`;
+  });
+
+  h+=`<div style="display:flex;gap:12px;margin-top:8px;flex-wrap:wrap">
+    <div style="display:flex;align-items:center;gap:4px"><div style="width:10px;height:10px;border-radius:2px;background:rgba(0,230,118,.7)"></div><span style="font-family:var(--mono);font-size:9px;color:var(--muted)">≤2.5% Good</span></div>
+    <div style="display:flex;align-items:center;gap:4px"><div style="width:10px;height:10px;border-radius:2px;background:rgba(255,149,0,.75)"></div><span style="font-family:var(--mono);font-size:9px;color:var(--muted)">2.5–5% Warn</span></div>
+    <div style="display:flex;align-items:center;gap:4px"><div style="width:10px;height:10px;border-radius:2px;background:rgba(255,68,68,.8)"></div><span style="font-family:var(--mono);font-size:9px;color:var(--muted)">&gt;5% Critical</span></div>
+    <div style="display:flex;align-items:center;gap:4px"><div style="width:10px;height:10px;border-radius:2px;background:var(--border)"></div><span style="font-family:var(--mono);font-size:9px;color:var(--muted)">No data</span></div>
   </div></div>`;
   wrap.innerHTML=h;
 }
 
-// ══════════════════════════════════════════════════════════════
-// PERFORMANCE TABLE
-// ══════════════════════════════════════════════════════════════
-function renderPerf(rf) {
-  if(rf!==undefined) roleF=rf;
-  const mp={};
-  FILT.forEach(r=>{
-    const id=r[COL.staffId]||r[COL.staffName]||'?';
-    const role=r[COL.role]||'';
-    if(roleF!=='all'&&role!==roleF) return;
-    if(!mp[id]) mp[id]={id,name:r[COL.staffName]||'',role,unit:r[COL.unit]||'',line:r[COL.line]||'',chk:0,def:0,prodT:0,prodA:0};
-    mp[id].chk   +=n(r[COL.qcA]);
-    mp[id].def   +=n(r[COL.defQty]);
-    mp[id].prodT +=n(r[COL.prodT]);
-    mp[id].prodA +=n(r[COL.prodA]);
+// ══════════════════════════════════════════════════════════
+// CHART: Daily DHU Trend (from Sum_Daily)
+// ══════════════════════════════════════════════════════════
+function renderDailyTrend(){
+  const rows=filtDate(D.daily).slice(-30).reverse();
+  kill('cDaily');
+  const canvas=document.getElementById('cDaily');
+  if(!rows.length){ canvas.parentElement.innerHTML=ndHTML(); return; }
+
+  const lbls=rows.map(r=>String(r.Date||'').substring(5)); // MM-DD
+  charts.daily=new Chart(canvas,{
+    type:'line',
+    data:{labels:lbls, datasets:[
+      {label:'Sewing DHU%',   data:rows.map(r=>n(r.Sewing_DHU_Pct)),   borderColor:'#00D4FF', backgroundColor:'rgba(0,212,255,.08)', borderWidth:2, pointRadius:3, fill:true, tension:.4},
+      {label:'Finishing DHU%',data:rows.map(r=>n(r.Finishing_DHU_Pct)),borderColor:'#FF4444', backgroundColor:'transparent', borderWidth:2, pointRadius:3, fill:false, tension:.4},
+      {label:'Target',        data:rows.map(()=>CFG.TARGET.SEW_DHU),  borderColor:'rgba(255,214,0,.4)', borderDash:[5,4], borderWidth:1.5, pointRadius:0, fill:false},
+    ]},
+    options: oLine('DHU %', true),
   });
+}
 
-  const staff=Object.values(mp).map(s=>{
-    s.dhu      =s.chk  >0?s.def   /s.chk  *100:0;
-    s.chkRate  =s.prodA>0?s.chk   /s.prodA*100:0;
-    s.prodEff  =s.prodT>0?s.prodA /s.prodT*100:0;
-    s.perf     =(s.prodEff*.3)+(s.chkRate*.3)+((100-s.dhu)*.4);
-    return s;
-  }).sort((a,b)=>b.perf-a.perf);
+// ══════════════════════════════════════════════════════════
+// CHART: Daily Efficiency (from Sum_Daily)
+// ══════════════════════════════════════════════════════════
+function renderDailyEff(){
+  const rows=filtDate(D.daily).slice(-30).reverse();
+  kill('cDailyEff');
+  const canvas=document.getElementById('cDailyEff');
+  if(!rows.length){ canvas.parentElement.innerHTML=ndHTML(); return; }
 
-  document.getElementById('pCnt').textContent=staff.length+' STAFF';
+  const lbls=rows.map(r=>String(r.Date||'').substring(5));
+  const effs=rows.map(r=>n(r.Prod_Eff_Pct));
+  const colors=effs.map(e=>e===0?'rgba(90,122,154,.3)':e>=85?'rgba(0,230,118,.75)':e>=70?'rgba(255,149,0,.75)':'rgba(255,68,68,.75)');
+
+  charts.dailyEff=new Chart(canvas,{
+    type:'bar',
+    data:{labels:lbls, datasets:[
+      {label:'Prod Eff%', data:effs, backgroundColor:colors, borderRadius:4},
+      {label:'Target (85%)', data:rows.map(()=>85), type:'line', borderColor:'rgba(255,214,0,.5)', borderDash:[5,4], borderWidth:1.5, pointRadius:0, fill:false},
+    ]},
+    options: oBar('Eff %', false),
+  });
+}
+
+// ══════════════════════════════════════════════════════════
+// PERFORMANCE TABLE (from Sum_Staff)
+// ══════════════════════════════════════════════════════════
+function renderPerf(rf){
+  if(rf!==undefined) roleF=rf;
+
+  const rows=filtStaff(D.staff)
+    .filter(r=>roleF==='all'||String(r.Role||'')===roleF)
+    .sort((a,b)=>n(b.Overall_Score_Pct)-n(a.Overall_Score_Pct));
+
+  document.getElementById('pCnt').textContent=rows.length+' STAFF';
   const tb=document.getElementById('pBody');
-  if(!staff.length){tb.innerHTML=`<tr><td colspan="13" style="text-align:center;padding:28px;color:var(--muted);font-family:var(--mono);font-size:11px">No data for selected filters</td></tr>`;return;}
+  if(!rows.length){
+    tb.innerHTML=`<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--muted);font-family:var(--mono);font-size:11px">No data for current filter</td></tr>`;
+    return;
+  }
 
-  tb.innerHTML=staff.map((s,i)=>{
-    const rk=i<3?`r${i+1}`:'rn';
-    const pct=Math.min(100,s.perf).toFixed(1);
-    const col=s.perf>=90?'#00E676':s.perf>=75?'#FFD600':s.perf>=60?'#FF9500':'#FF4444';
-    const [gl,gc]=s.perf>=90?['Excellent','gex']:s.perf>=75?['Good','ggd']:s.perf>=60?['Average','gav']:['Poor','gpr'];
-    const dhuCol=s.dhu<=CFG.SEW_DHU?'var(--green)':'var(--red)';
+  tb.innerHTML=rows.map((r,i)=>{
+    const score=n(r.Overall_Score_Pct);
+    const pct=Math.min(100,score).toFixed(1);
+    const col=score>=90?'#00E676':score>=75?'#FFD600':score>=60?'#FF9500':'#FF4444';
+    const [gl,gc]=score>=90?['Excellent','gex']:score>=75?['Good','ggd']:score>=60?['Average','gav']:['Poor','gpr'];
+    const rk=i===0?'r1':i===1?'r2':i===2?'r3':'rn';
+    const role=String(r.Role||'');
+    const metric=role==='QI'?`Checked: ${n(r.Total_QC_Checked).toLocaleString()} | DHU: ${n(r.Sewing_DHU_Pct).toFixed(1)}%`:
+                 role==='Line Quality'?`Line DHU: ${n(r.LQ_Line_DHU_Pct).toFixed(1)}%`:
+                 `DHU: ${n(r.Sewing_DHU_Pct).toFixed(1)}%`;
     return `<tr>
       <td><span class="rnk ${rk}">${i+1}</span></td>
-      <td style="font-family:var(--mono);font-size:10px;color:var(--accent)">${s.id}</td>
-      <td style="font-weight:500">${s.name||'—'}</td>
-      <td style="font-family:var(--mono);font-size:10px;color:var(--muted)">${s.role}</td>
-      <td style="font-family:var(--mono);font-size:10px">${s.unit}</td>
-      <td style="font-family:var(--mono);font-size:10px">${s.line}</td>
-      <td style="font-family:var(--mono)">${s.chk.toLocaleString()}</td>
-      <td style="font-family:var(--mono);color:var(--red)">${s.def.toLocaleString()}</td>
-      <td style="font-family:var(--mono);color:${dhuCol}">${s.dhu.toFixed(1)}%</td>
-      <td style="font-family:var(--mono)">${s.chkRate.toFixed(1)}%</td>
-      <td style="font-family:var(--mono)">${s.prodEff.toFixed(1)}%</td>
-      <td><div class="pbar-wrap"><div class="pbar-bg"><div class="pbar-fill" style="width:${pct}%;background:${col}"></div></div><span style="font-family:var(--mono);font-size:10px;color:${col};min-width:38px">${pct}%</span></div></td>
-      <td><span class="gbadge ${gc}">${gl}</span></td>
+      <td style="font-family:var(--mono);font-size:10px;color:var(--accent)">${r.Staff_ID||'—'}</td>
+      <td style="font-weight:500">${r.Staff_Name||'—'}</td>
+      <td style="font-family:var(--mono);font-size:10px;color:var(--muted)">${role}</td>
+      <td style="font-family:var(--mono);font-size:10px">Unit ${r.Unit_No||'—'}</td>
+      <td style="font-family:var(--mono);font-size:10px">${r.Line_No||'—'}</td>
+      <td><div class="pb-w"><div class="pb-bg"><div class="pb-f" style="width:${pct}%;background:${col}"></div></div><span style="font-family:var(--mono);font-size:10px;color:${col};min-width:36px">${pct}%</span></div></td>
+      <td><span class="gbdg ${gc}">${gl}</span></td>
+      <td style="font-family:var(--mono);font-size:10px;color:var(--muted)">${metric}</td>
     </tr>`;
   }).join('');
 }
+
 function rTab(role,el){
   document.querySelectorAll('.rtab').forEach(t=>t.classList.remove('on'));
   el.classList.add('on');
   renderPerf(role);
 }
 
-// ══════════════════════════════════════════════════════════════
-// CHART: Controller & Floor IC performance bars
-// ══════════════════════════════════════════════════════════════
-function renderCtrlFIC() {
-  // Controller
-  const ctrls=[...new Set(STAFF.filter(s=>(s.Role||s.role||'')==='Controller').map(s=>s.Full_Name||s.Staff_Name||''))].filter(Boolean);
-  const ctrlDHU=ctrls.map(name=>{
-    const staffRow=STAFF.find(s=>(s.Full_Name||s.Staff_Name||'')===name);
-    const lines=(staffRow?.Assigned_Lines||'').split(',').map(l=>l.trim());
-    const rows=FILT.filter(r=>lines.includes(r[COL.line]||''));
-    const c=sumA(rows,COL.qcA),d=sumA(rows,COL.defQty);
-    return c>0?+(d/c*100).toFixed(2):0;
-  });
-  const cColors=ctrlDHU.map(d=>d<=CFG.SEW_DHU?'rgba(0,230,118,.8)':d<=CFG.SEW_DHU*1.5?'rgba(255,149,0,.8)':'rgba(255,68,68,.8)');
+// ══════════════════════════════════════════════════════════
+// CONTROLLER + FLOOR IC CHARTS (from Sum_Staff)
+// ══════════════════════════════════════════════════════════
+function renderCtrlFIC(){
+  const ctrls=filtUnit(D.staff).filter(r=>r.Role==='Controller');
+  const fics =filtUnit(D.staff).filter(r=>r.Role==='Floor IC');
 
+  // Controller
   kill('cCtrl');
-  charts.ctrl=new Chart(document.getElementById('cCtrl'),{
-    type:'bar',
-    data:{labels:ctrls.length?ctrls:['No Data'],datasets:[{label:'DHU%',data:ctrlDHU.length?ctrlDHU:[0],backgroundColor:cColors,borderRadius:6}]},
-    options:opts('DHU %',false)
-  });
+  const ctrlC=document.getElementById('cCtrl');
+  if(!ctrls.length){ ctrlC.parentElement.innerHTML=ndHTML(); }
+  else {
+    const dhus=ctrls.map(r=>n(r.Sewing_DHU_Pct));
+    const cols=dhus.map(d=>d<=CFG.TARGET.SEW_DHU?'rgba(0,230,118,.8)':d<=CFG.TARGET.SEW_DHU*1.5?'rgba(255,149,0,.8)':'rgba(255,68,68,.8)');
+    charts.ctrl=new Chart(ctrlC,{
+      type:'bar',
+      data:{labels:ctrls.map(r=>r.Staff_Name||r.Staff_ID||'?'), datasets:[{label:'DHU%',data:dhus,backgroundColor:cols,borderRadius:6}]},
+      options:{...oBar('DHU%',false),plugins:{legend:{display:false},tooltip:tOpt()}},
+    });
+  }
 
   // Floor IC
-  const fics=[...new Set(STAFF.filter(s=>(s.Role||s.role||'')==='Floor IC').map(s=>s.Full_Name||s.Staff_Name||''))].filter(Boolean);
-  const ficDHU=fics.map(name=>{
-    const staffRow=STAFF.find(s=>(s.Full_Name||s.Staff_Name||'')===name);
-    const lines=(staffRow?.Assigned_Lines||'').split(',').map(l=>l.trim());
-    const rows=FILT.filter(r=>lines.includes(r[COL.line]||''));
-    const c=sumA(rows,COL.qcA),d=sumA(rows,COL.defQty);
-    return c>0?+(d/c*100).toFixed(2):0;
-  });
-  const fColors=ficDHU.map(d=>d<=CFG.SEW_DHU?'rgba(0,230,118,.8)':d<=CFG.SEW_DHU*1.5?'rgba(255,149,0,.8)':'rgba(255,68,68,.8)');
-
   kill('cFIC');
-  charts.fic=new Chart(document.getElementById('cFIC'),{
-    type:'bar',
-    data:{labels:fics.length?fics:['No Data'],datasets:[{label:'DHU%',data:ficDHU.length?ficDHU:[0],backgroundColor:fColors,borderRadius:6}]},
-    options:opts('DHU %',false)
-  });
+  const ficC=document.getElementById('cFIC');
+  if(!fics.length){ ficC.parentElement.innerHTML=ndHTML(); }
+  else {
+    const dhus=fics.map(r=>n(r.Sewing_DHU_Pct));
+    const cols=dhus.map(d=>d<=CFG.TARGET.SEW_DHU?'rgba(0,230,118,.8)':d<=CFG.TARGET.SEW_DHU*1.5?'rgba(255,149,0,.8)':'rgba(255,68,68,.8)');
+    charts.fic=new Chart(ficC,{
+      type:'bar',
+      data:{labels:fics.map(r=>r.Staff_Name||r.Staff_ID||'?'), datasets:[{label:'DHU%',data:dhus,backgroundColor:cols,borderRadius:6}]},
+      options:{...oBar('DHU%',false),plugins:{legend:{display:false},tooltip:tOpt()}},
+    });
+  }
 }
 
-// ══════════════════════════════════════════════════════════════
-// ALERTS
-// ══════════════════════════════════════════════════════════════
-function renderAlerts() {
-  const alerts=[];
-  FILT.forEach(r=>{
-    const chk=n(r[COL.qcA]),prod=n(r[COL.prodA]),def=n(r[COL.defQty]),bal=n(r[COL.balance]);
-    const nm=r[COL.staffName]||r[COL.staffId]||'—';
-    const ln=r[COL.line]||'—',sl=r[COL.hour]||'—';
-    if(chk>prod&&prod>0) alerts.push({t:'red',i:'🚨',h:`False Report — ${nm}`,d:`Line ${ln} | ${sl} | Checked ${chk} > Produced ${prod}`});
-    if(bal>CFG.BAL_WARN) alerts.push({t:'warn',i:'⚠️',h:`High Table Balance — Line ${ln}`,d:`${bal} pcs pending | ${sl} | ${nm}`});
-    if(chk>0&&def/chk*100>CFG.SEW_DHU*2) alerts.push({t:'red',i:'📉',h:`DHU Spike — ${nm}`,d:`${(def/chk*100).toFixed(1)}% at Line ${ln} | ${sl}`});
-  });
-  const c=document.getElementById('r6');
-  if(!alerts.length){c.innerHTML=`<div class="no-alert">✓ No alerts for current filter selection.</div>`;return;}
-  c.innerHTML=alerts.slice(0,12).map(a=>`<div class="alert${a.t==='warn'?' warn':''}"><div class="alert-ico">${a.i}</div><div class="alert-txt"><strong>${a.h}</strong><span>${a.d}</span></div></div>`).join('');
+// ══════════════════════════════════════════════════════════
+// ALERTS (from Sum_Alert)
+// ══════════════════════════════════════════════════════════
+function renderAlerts(){
+  let rows=D.alert;
+  if(fUnit) rows=rows.filter(r=>String(r.Unit||'')===fUnit);
+  if(fLine) rows=rows.filter(r=>String(r.Line||'')===fLine);
+  if(fDate) rows=rows.filter(r=>String(r.Date||'').substring(0,10)===fDate);
+
+  const c=document.getElementById('r7');
+  if(!rows.length){
+    c.innerHTML=`<div class="alrt ok">✓ No alerts for current filter — all data within acceptable range.</div>`;
+    return;
+  }
+  c.innerHTML=rows.slice(0,15).map(r=>{
+    const sev=String(r.Severity||'').toUpperCase();
+    const cls=sev==='WARN'?'warn':'high';
+    const ico=r.Type==='False Report'?'🚨':r.Type==='High Balance'?'⚠️':'📉';
+    return `<div class="alrt ${cls}">
+      <div class="alrt-ico">${ico}</div>
+      <div class="alrt-txt">
+        <strong>${r.Type} — Unit ${r.Unit||'?'} Line ${r.Line||'?'}</strong>
+        <span>${r.Detail||''} | ${r.Hour||''} | ${r.Date||''} | ${r.Staff||''}</span>
+      </div>
+    </div>`;
+  }).join('');
 }
 
-// ══════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════
 // PDF EXPORT — A4 Landscape
-// ══════════════════════════════════════════════════════════════
-async function xpdf(secId) {
+// ══════════════════════════════════════════════════════════
+async function xpdf(secId){
   const el=document.getElementById(secId);
   if(!el) return;
   const btn=event?.target?.closest('.btn-pdf');
-  if(btn){btn.textContent='⏳...';btn.disabled=true;}
-  try {
+  if(btn){btn.textContent='⏳';btn.disabled=true;}
+  try{
     const canvas=await html2canvas(el,{backgroundColor:'#0F1E35',scale:2,useCORS:true,logging:false});
     const {jsPDF}=window.jspdf;
     const pdf=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
@@ -843,117 +928,38 @@ async function xpdf(secId) {
     const ratio=canvas.width/canvas.height;
     let iw=W-16,ih=iw/ratio;
     if(ih>H-16){ih=H-16;iw=ih*ratio;}
-    pdf.setFillColor(15,30,53);
-    pdf.rect(0,0,W,H,'F');
+    pdf.setFillColor(15,30,53);pdf.rect(0,0,W,H,'F');
     pdf.addImage(canvas.toDataURL('image/png'),'PNG',(W-iw)/2,8,iw,ih);
     pdf.setFontSize(7);pdf.setTextColor(90,122,154);
-    pdf.text(`DHU Quality Dashboard · ${new Date().toLocaleString()}`,W/2,H-4,{align:'center'});
+    const fl=[fUnit&&`Unit ${fUnit}`,fLine&&`Line ${fLine}`,fAO&&`AO ${fAO}`,fDate].filter(Boolean);
+    pdf.text(`DHU Dashboard · ${new Date().toLocaleString()}${fl.length?' · '+fl.join(' | '):''}`,W/2,H-4,{align:'center'});
     pdf.save(`DHU_${secId}_${new Date().toISOString().slice(0,10)}.pdf`);
-  } catch(e){console.error(e);}
-  if(btn){
-    btn.innerHTML=`<svg viewBox="0 0 20 20" fill="currentColor" style="width:12px;height:12px"><path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/><path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/></svg> PDF A4`;
-    btn.disabled=false;
-  }
+  }catch(e){console.error(e);}
+  if(btn){btn.innerHTML=`<svg viewBox="0 0 20 20" fill="currentColor" style="width:11px;height:11px"><path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/><path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/></svg>PDF A4`;btn.disabled=false;}
 }
 
-// ══════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════
 // CHART HELPERS
-// ══════════════════════════════════════════════════════════════
-function opts(yLbl,legend){return{responsive:true,maintainAspectRatio:true,plugins:{legend:{display:legend,labels:{color:'#5A7A9A',font:{family:'JetBrains Mono',size:10},boxWidth:10}},tooltip:{backgroundColor:'#0A1828',borderColor:'#1A2E4A',borderWidth:1,titleColor:'#E8F4FF',bodyColor:'#5A7A9A',titleFont:{family:'JetBrains Mono',size:10},bodyFont:{family:'JetBrains Mono',size:10},padding:8}},scales:{x:sX(),y:sY(yLbl)}};}
-function sX(){return{ticks:{color:'#3A5A7A',font:{family:'JetBrains Mono',size:9}},grid:{color:'rgba(26,46,74,.4)'}}}
-function sY(lbl){return{ticks:{color:'#3A5A7A',font:{family:'JetBrains Mono',size:9}},grid:{color:'rgba(26,46,74,.4)'},title:{display:!!lbl,text:lbl,color:'#5A7A9A',font:{family:'JetBrains Mono',size:9}}}}
+// ══════════════════════════════════════════════════════════
+function tOpt(){return{backgroundColor:'#0A1828',borderColor:'#1A2E4A',borderWidth:1,titleColor:'#E8F4FF',bodyColor:'#5A7A9A',padding:8,titleFont:{family:'JetBrains Mono',size:10},bodyFont:{family:'JetBrains Mono',size:10}};}
+function sX(){return{ticks:{color:'#3A5A7A',font:{family:'JetBrains Mono',size:9},maxRotation:45},grid:{color:'rgba(26,46,74,.35)'}}}
+function sY(l){return{ticks:{color:'#3A5A7A',font:{family:'JetBrains Mono',size:9}},grid:{color:'rgba(26,46,74,.35)'},title:{display:!!l,text:l,color:'#5A7A9A',font:{family:'JetBrains Mono',size:9}}}}
+function oLine(y,leg){return{responsive:true,maintainAspectRatio:true,plugins:{legend:{display:leg,labels:{color:'#5A7A9A',font:{family:'JetBrains Mono',size:10},boxWidth:10}},tooltip:tOpt()},scales:{x:sX(),y:sY(y)}};}
+function oBar(y,leg){return oLine(y,leg);}
 function kill(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
+function ndHTML(){return '<div class="nd"><div class="nd-ico">📊</div><span style="font-family:var(--mono);font-size:11px">No data</span></div>';}
 
-// ══════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════
 // UTILS
-// ══════════════════════════════════════════════════════════════
-const n  = v => parseFloat(v)||0;
-const sum= (arr,k)=>arr.reduce((a,r)=>a+n(r[k]),0);
-const sumA=sum;
+// ══════════════════════════════════════════════════════════
+const n   = v => parseFloat(v)||0;
+const sumF= (arr,k) => arr.reduce((a,r)=>a+n(r[k]),0);
 const setText=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
 
-// ══════════════════════════════════════════════════════════════
-// DEMO DATA — তোমার Excel-এর structure অনুযায়ী
-// ══════════════════════════════════════════════════════════════
-function demoHourly() {
-  const d=[];
-  const slots=['08:00-09:00','09:00-10:00','10:00-11:00','11:00-12:00','13:00-14:00','14:00-15:00','15:00-16:00','16:00-17:00'];
-  const roles=['Line Quality','QI','Controller','Floor IC'];
-  const defTypes=['D01 - Skip Stitch','D02 - Open Seam','D03 - Raw Edge','D05 - Puckering','D07 - Wrong Measurement','D09 - Dirty Mark'];
-  const aos=['AO-2401','AO-2402','AO-2403','AO-2404','AO-2405'];
-  const today=new Date().toISOString().slice(0,10);
-  const staffNames=['Tajul','Moinul','Majahar','Roton','Manik','Shahin','Iqbal','Delowar','Monoyar','Mostafiq'];
-  for(let unit=1;unit<=7;unit++){
-    for(let line=1;line<=18;line++){
-      slots.forEach((slot,hi)=>{
-        const pA=80+Math.floor(Math.random()*35);
-        const qC=Math.min(pA,60+Math.floor(Math.random()*28));
-        const def=Math.floor(qC*(0.01+Math.random()*.04));
-        const si=(unit-1)*10+line;
-        d.push({
-          Row_ID:`HQ-${String(si*10+hi).padStart(4,'0')}`,
-          Timestamp:`${today} ${slot.split('-')[0]}`,
-          Date:today, Hour_Slot:slot,
-          Staff_ID:4889+((si)%10),
-          Staff_Name:staffNames[(si)%staffNames.length],
-          Role:roles[line%4], Unit_No:unit, Line_No:`L${String(line).padStart(2,'0')}`,
-          AO_Number:aos[Math.floor(Math.random()*aos.length)],
-          Style_No:`STY-${100+(unit*3+line)%8}`,
-          Prod_Target_Hr:100, Prod_Actual:pA,
-          Table_Balance_Prev:Math.floor(Math.random()*70),
-          Quality_Target_Hr:100, Quality_Checked:qC,
-          Defect_Qty:def,
-          Defect_Type_Primary:defTypes[Math.floor(Math.random()*defTypes.length)],
-          Defect_Detail:'', Remarks:'',
-        });
-      });
-    }
-  }
-  return d;
-}
-function demoFin(){
-  return ['AO-2401','AO-2402','AO-2403','AO-2404','AO-2405'].map(ao=>({
-    Date:new Date().toISOString().slice(0,10),
-    AO_Number:ao, Style_No:'STY-100', Unit_No:1,
-    Inspected_Qty:400+Math.floor(Math.random()*300),
-    Defect_Qty:8+Math.floor(Math.random()*15),
-  }));
-}
-function demoStaff(){
-  return [
-    {Staff_ID:4889,Full_Name:'Tajul',Role:'Line Quality',Unit_No:1,Assigned_Lines:'L01'},
-    {Staff_ID:4890,Full_Name:'Moinul',Role:'Line Quality',Unit_No:1,Assigned_Lines:'L02'},
-    {Staff_ID:4891,Full_Name:'Majahar',Role:'Line Quality',Unit_No:1,Assigned_Lines:'L03'},
-    {Staff_ID:4892,Full_Name:'Roton',Role:'QI',Unit_No:1,Assigned_Lines:'L01'},
-    {Staff_ID:4893,Full_Name:'Manik',Role:'QI',Unit_No:1,Assigned_Lines:'L01'},
-    {Staff_ID:4894,Full_Name:'Shahin',Role:'Controller',Unit_No:1,Assigned_Lines:'L01,L02'},
-    {Staff_ID:4895,Full_Name:'Iqbal',Role:'Controller',Unit_No:1,Assigned_Lines:'L03,L04'},
-    {Staff_ID:4896,Full_Name:'Delowar',Role:'Floor IC',Unit_No:1,Assigned_Lines:'L01,L02,L03,L04'},
-    {Staff_ID:4897,Full_Name:'Monoyar',Role:'Floor IC',Unit_No:1,Assigned_Lines:'L05,L06'},
-    {Staff_ID:4898,Full_Name:'Mostafiq',Role:'QI',Unit_No:1,Assigned_Lines:'L02'},
-  ];
-}
-
-function showConfig(){
-  alert('তোমার Google Sheet ID টি কপি করো:\nGoogle Sheet URL → /d/ এর পরের অংশ\n\nতারপর Dashboard-এর HTML file খুলে CFG.SHEET_ID তে বসাও।');
-}
-
-
-function noDataHTML(){
-  return '<div class="no-data"><div class="no-data-icon">📊</div><span style=\"font-family:var(--mono);font-size:11px\">No data for current filter</span></div>';
-}
-
-function showError(title, msg){
-  document.getElementById('ldr').classList.add('off');
-  const es = document.getElementById('errState');
-  es.classList.add('show');
-  es.querySelector('.error-title').textContent = title;
-  document.getElementById('errMsg').textContent = msg;
-  document.getElementById('mainWrap').style.display = 'none';
-}
-
-// AUTO REFRESH
-setInterval(loadAll, CFG.INTERVAL);
+// ══════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════
+setInterval(loadAll, CFG.REFRESH);
 window.addEventListener('load', loadAll);
 </script>
 </body>
