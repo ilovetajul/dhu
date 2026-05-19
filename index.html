@@ -331,7 +331,7 @@ select:focus,select:hover{border-color:var(--accent)}
 // ══════════════════════════════════════════════════════════
 const CFG = {
   // ⚠️ তোমার Google Sheet ID এখানে বসাও
-  SHEET_ID: "1aFJcsB4qaAHZy58swjzXlDR9S7VLTIm4gUAVqIw5FjU",
+  SHEET_ID: "YOUR_GOOGLE_SHEET_ID_HERE",
 
   // Summary Sheets (Apps Script তৈরি করবে)
   SHEETS: {
@@ -469,11 +469,19 @@ function setHero(){
 // FILTERS
 // ══════════════════════════════════════════════════════════
 function populateFilters(){
-  const units = D.unit.map(r=>String(r.Unit_No||'')).filter(Boolean).sort();
-  const lines = D.line.map(r=>String(r.Line_No||'')).filter(Boolean);
-  const uLines= [...new Set(lines)].sort();
-  const aos   = D.ao.map(r=>String(r.AO_Number||'')).filter(Boolean).sort();
-  const dates = D.daily.map(r=>String(r.Date||'').substring(0,10)).filter(Boolean).sort().reverse();
+  // ✅ Unique units only — deduplicated and sorted numerically
+  const units = [...new Set(D.unit.map(r=>String(r.Unit_No||'')).filter(Boolean))]
+    .sort((a,b)=>Number(a)-Number(b));
+
+  // ✅ Unique lines only
+  const uLines = [...new Set(D.line.map(r=>String(r.Line_No||'')).filter(Boolean))].sort();
+
+  // ✅ Unique AOs only
+  const aos = [...new Set(D.ao.map(r=>String(r.AO_Number||'')).filter(Boolean))].sort();
+
+  // ✅ Unique dates only, newest first
+  const dates = [...new Set(D.daily.map(r=>String(r.Date||'').substring(0,10)).filter(Boolean))]
+    .sort().reverse();
 
   fillSel('fUnit', units, 'All Units');
   fillSel('fLine', uLines,'All Lines');
@@ -564,38 +572,58 @@ function renderAll(){
 // KPIs — from Unit + Daily + Meta summaries
 // ══════════════════════════════════════════════════════════
 function renderKPIs(){
+  // ✅ Aggregate properly — handle duplicate rows in summary sheets
   const uRows = filtUnit(filtDate(D.unit));
   const dRows = filtDate(D.daily);
 
-  // If unit filtered, use unit summary; else aggregate daily
-  const totChk   = uRows.length ? sumF(uRows,'QC_Checked')   : sumF(dRows,'QC_Checked');
-  const totDef   = uRows.length ? sumF(uRows,'Defect_Qty')   : sumF(dRows,'Defect_Qty');
-  const totProdT = uRows.length ? sumF(uRows,'Prod_Target')  : sumF(dRows,'Prod_Target');
-  const totProdA = uRows.length ? sumF(uRows,'Prod_Actual')  : sumF(dRows,'Prod_Actual');
-  const totBal   = sumF(filtLine(D.line),'Table_Balance_Max');
-  const totFlags = uRows.length ? sumF(uRows,'False_Reports'): sumF(dRows,'False_Reports');
-  const totDays  = D.daily.length;
+  // Aggregate unit rows (may have duplicates per unit)
+  let totChk=0, totDef=0, totProdT=0, totProdA=0, totFlags=0;
+  if(uRows.length){
+    // Group by Unit_No then sum
+    const seen={};
+    uRows.forEach(r=>{
+      const u=String(r.Unit_No||'');
+      if(!seen[u]) seen[u]=true; // count each unit once if already aggregated
+      totChk   += n(r.QC_Checked);
+      totDef   += n(r.Defect_Qty);
+      totProdT += n(r.Prod_Target);
+      totProdA += n(r.Prod_Actual);
+      totFlags += n(r.False_Reports);
+    });
+  } else {
+    // Use daily summary (already aggregated per day)
+    dRows.forEach(r=>{
+      totChk   += n(r.QC_Checked);
+      totDef   += n(r.Defect_Qty);
+      totProdT += n(r.Prod_Target);
+      totProdA += n(r.Prod_Actual);
+      totFlags += n(r.False_Reports);
+    });
+  }
 
-  const finRows  = filtAO(filtUnit(filtDate(D.ao)));
-  const totFinInsp=sumF(finRows,'Fin_Inspected');
-  const totFinDef =sumF(finRows,'Fin_Defect');
+  const totBal = sumF(filtLine(D.line),'Table_Balance_Max');
+  const totDays = [...new Set(D.daily.map(r=>String(r.Date||'').substring(0,10)).filter(Boolean))].length;
 
-  const dhu  = totChk   > 0 ? totDef   / totChk   * 100 : 0;
-  const eff  = totProdT > 0 ? totProdA / totProdT * 100 : 0;
+  const finRows   = filtAO(filtUnit(D.ao));
+  const totFinInsp= sumF(finRows,'Fin_Inspected');
+  const totFinDef = sumF(finRows,'Fin_Defect');
+
+  const dhu    = totChk    > 0 ? totDef    / totChk    * 100 : 0;
+  const eff    = totProdT  > 0 ? totProdA  / totProdT  * 100 : 0;
   const finDHU = totFinInsp > 0 ? totFinDef / totFinInsp * 100 : 0;
 
   setText('kDHU', dhu.toFixed(1)+'%');
   setText('kFin',  finDHU.toFixed(1)+'%');
   setText('kEff',  eff.toFixed(1)+'%');
-  setText('kDef',  totDef.toLocaleString());
+  setText('kDef',  Math.round(totDef).toLocaleString());
   setText('kBal',  Math.round(totBal).toLocaleString());
   setText('kFlg',  Math.round(totFlags));
   setText('kDays', totDays);
 
   const te=document.getElementById('kDHUt');
-  if(dhu===0)        te.innerHTML='<span style="color:var(--muted);font-family:var(--mono);font-size:9px">No data</span>';
+  if(dhu===0)                    te.innerHTML='<span style="color:var(--muted);font-family:var(--mono);font-size:9px">No data</span>';
   else if(dhu<=CFG.TARGET.SEW_DHU) te.innerHTML='<span style="color:var(--green);font-family:var(--mono);font-size:9px">✓ On Target</span>';
-  else               te.innerHTML=`<span style="color:var(--red);font-family:var(--mono);font-size:9px">↑ +${(dhu-CFG.TARGET.SEW_DHU).toFixed(1)}%</span>`;
+  else                           te.innerHTML=`<span style="color:var(--red);font-family:var(--mono);font-size:9px">↑ +${(dhu-CFG.TARGET.SEW_DHU).toFixed(1)}%</span>`;
 }
 
 // ══════════════════════════════════════════════════════════
@@ -679,18 +707,37 @@ function renderPareto(){
 // CHART: Unit DHU (from Sum_Unit — always all 7 units)
 // ══════════════════════════════════════════════════════════
 function renderUnitDHU(){
+  // ✅ Always show all 7 units — aggregate if duplicate rows exist
   const units=[1,2,3,4,5,6,7];
-  const dhus=units.map(u=>{
-    const r=D.unit.find(x=>String(x.Unit_No||'')===String(u));
-    return r ? n(r.Sewing_DHU_Pct) : 0;
-  });
-  const colors=dhus.map(d=>d===0?'rgba(90,122,154,.3)':d<=CFG.TARGET.SEW_DHU?'rgba(0,230,118,.8)':d<=CFG.TARGET.SEW_DHU*1.5?'rgba(255,149,0,.8)':'rgba(255,68,68,.8)');
 
+  // Aggregate Sum_Unit rows by Unit_No (in case of duplicates)
+  const unitAgg={};
+  D.unit.forEach(r=>{
+    const u=String(r.Unit_No||'').trim();
+    if(!u) return;
+    if(!unitAgg[u]) unitAgg[u]={chk:0,def:0,prodT:0,prodA:0};
+    unitAgg[u].chk   += n(r.QC_Checked);
+    unitAgg[u].def   += n(r.Defect_Qty);
+    unitAgg[u].prodT += n(r.Prod_Target);
+    unitAgg[u].prodA += n(r.Prod_Actual);
+  });
+
+  const dhus=units.map(u=>{
+    const a=unitAgg[String(u)];
+    if(!a || a.chk===0) return 0;
+    return +(a.def/a.chk*100).toFixed(2);
+  });
+
+  const colors=dhus.map(d=>
+    d===0                          ? 'rgba(90,122,154,.3)' :
+    d<=CFG.TARGET.SEW_DHU          ? 'rgba(0,230,118,.8)' :
+    d<=CFG.TARGET.SEW_DHU*1.5      ? 'rgba(255,149,0,.8)' :
+                                     'rgba(255,68,68,.8)');
   kill('cUnit');
   charts.unit=new Chart(document.getElementById('cUnit'),{
     type:'bar',
     data:{labels:units.map(u=>`Unit ${u}`), datasets:[{label:'DHU%',data:dhus,backgroundColor:colors,borderRadius:6}]},
-    options:{...oBar('DHU%',false), plugins:{legend:{display:false},tooltip:{...tOpt(),callbacks:{label:ctx=>ctx.raw===0?'No data':`DHU: ${ctx.raw}%`}}}},
+    options:{...oBar('DHU%',false),plugins:{legend:{display:false},tooltip:{...tOpt(),callbacks:{label:ctx=>ctx.raw===0?'No data':`DHU: ${ctx.raw}%`}}}},
   });
 }
 
