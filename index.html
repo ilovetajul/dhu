@@ -3,1010 +3,1311 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>DHU Quality Dashboard</title>
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<title>AmanDHU — Quality Command Center</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Barlow+Condensed:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
+/* ══ RESET ══════════════════════════════════════════════════════ */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;font-size:14px}
+body{font-family:'Space Grotesk',sans-serif;background:#080C12;color:#E2EAF4;min-height:100vh;overflow-x:hidden}
+
+/* ══ DESIGN TOKENS ══════════════════════════════════════════════ */
 :root{
-  --bg:#060D1A;--surface:#0C1628;--card:#0F1E35;
-  --border:#1A2E4A;--border2:#243650;
-  --accent:#00D4FF;--green:#00E676;--red:#FF4444;
-  --orange:#FF9500;--yellow:#FFD600;--purple:#B388FF;
-  --teal:#00BFA5;
-  --text:#E8F4FF;--muted:#5A7A9A;--muted2:#3A5A7A;
-  --mono:'JetBrains Mono',monospace;
-  --body:'Outfit',sans-serif;
-  --display:'Bebas Neue',sans-serif;
+  /* Background layers */
+  --bg0:#080C12; --bg1:#0D1420; --bg2:#111B2C; --bg3:#172238;
+  /* Borders */
+  --b1:#1C2A3E; --b2:#243550; --b3:#2E4265;
+  /* Accent system */
+  --cyan:#00E5FF; --cyan-d:#00B8CC; --cyan-bg:rgba(0,229,255,.06);
+  --amber:#FFB020; --amber-d:#E09400; --amber-bg:rgba(255,176,32,.06);
+  --red:#FF3D3D;   --red-d:#CC2020;   --red-bg:rgba(255,61,61,.06);
+  --green:#00D68F; --green-d:#00A86B; --green-bg:rgba(0,214,143,.06);
+  --violet:#9B6DFF;--violet-d:#7B4DDF;--violet-bg:rgba(155,109,255,.06);
+  /* Text */
+  --t1:#E2EAF4; --t2:#8BA0B8; --t3:#4A6282; --t4:#2A4262;
+  /* Mono */
+  --mono:'IBM Plex Mono',monospace;
+  --display:'Barlow Condensed',sans-serif;
 }
-html{scroll-behavior:smooth}
-body{font-family:var(--body);background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
-body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,212,255,.009) 2px,rgba(0,212,255,.009) 4px);pointer-events:none;z-index:9999}
 
-/* ── LOADER ── */
-.loader{position:fixed;inset:0;z-index:1000;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;transition:opacity .4s}
-.loader.off{opacity:0;pointer-events:none}
-.spin{width:44px;height:44px;border-radius:50%;border:3px solid var(--border);border-top-color:var(--accent);animation:rot .7s linear infinite}
-@keyframes rot{to{transform:rotate(360deg)}}
-.load-txt{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.12em}
-.load-bar-wrap{width:240px;height:3px;background:var(--border);border-radius:2px;overflow:hidden}
-.load-bar{height:100%;background:var(--accent);border-radius:2px;width:0%;transition:width .3s ease}
-.load-step{font-family:var(--mono);font-size:10px;color:var(--accent);letter-spacing:.08em;min-height:14px}
+/* ══ LOADING ════════════════════════════════════════════════════ */
+.boot{position:fixed;inset:0;z-index:2000;background:var(--bg0);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px}
+.boot.off{opacity:0;pointer-events:none;transition:opacity .5s .2s}
+.boot-logo{font-family:var(--display);font-size:48px;font-weight:800;letter-spacing:.04em;color:var(--cyan);text-shadow:0 0 40px rgba(0,229,255,.4)}
+.boot-sub{font-family:var(--mono);font-size:11px;color:var(--t3);letter-spacing:.15em;text-transform:uppercase}
+.boot-bar{width:280px;height:2px;background:var(--b2);border-radius:1px;overflow:hidden;position:relative}
+.boot-fill{height:100%;background:linear-gradient(90deg,var(--cyan),var(--violet));border-radius:1px;width:0;transition:width .3s ease;box-shadow:0 0 8px var(--cyan)}
+.boot-step{font-family:var(--mono);font-size:10px;color:var(--cyan);letter-spacing:.1em;min-height:14px}
 
-/* ── ERROR ── */
-.err-state{display:none;flex-direction:column;align-items:center;justify-content:center;min-height:70vh;gap:14px;text-align:center;padding:32px}
-.err-state.on{display:flex}
-.err-ico{font-size:42px}
-.err-ttl{font-family:var(--display);font-size:26px;color:var(--red)}
-.err-msg{font-family:var(--mono);font-size:12px;color:var(--muted);max-width:480px;line-height:1.9}
-.err-box{background:rgba(0,212,255,.07);border:1px solid rgba(0,212,255,.22);border-radius:10px;padding:14px 18px;font-family:var(--mono);font-size:11px;color:var(--accent);line-height:2.1;text-align:left;max-width:500px}
+/* ══ ERROR ══════════════════════════════════════════════════════ */
+.err-screen{display:none;flex-direction:column;align-items:center;justify-content:center;min-height:80vh;gap:16px;padding:32px;text-align:center}
+.err-screen.on{display:flex}
+.err-ico{font-size:48px}
+.err-h{font-family:var(--display);font-size:32px;font-weight:700;color:var(--red);letter-spacing:.04em}
+.err-body{font-family:var(--mono);font-size:12px;color:var(--t2);line-height:2;max-width:500px}
+.err-fix{background:var(--bg2);border:1px solid var(--b2);border-left:3px solid var(--cyan);border-radius:8px;padding:16px 20px;font-family:var(--mono);font-size:11px;color:var(--cyan);line-height:2.2;text-align:left;max-width:520px}
 
-/* ── TOPBAR ── */
-.topbar{position:sticky;top:0;z-index:100;background:rgba(6,13,26,.96);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);padding:0 20px;display:flex;align-items:center;justify-content:space-between;height:52px}
-.logo{display:flex;align-items:center;gap:10px}
-.logo-mark{width:30px;height:30px;border-radius:7px;background:linear-gradient(135deg,var(--accent),#0099CC);display:grid;place-items:center;font-family:var(--display);font-size:15px;color:var(--bg)}
-.logo-text{font-family:var(--display);font-size:18px;letter-spacing:.06em}
-.logo-sub{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:.1em}
-.tb-r{display:flex;align-items:center;gap:8px}
-.live{display:flex;align-items:center;gap:5px;background:rgba(0,230,118,.1);border:1px solid rgba(0,230,118,.3);color:var(--green);font-family:var(--mono);font-size:10px;padding:3px 9px;border-radius:100px}
-.live-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 1.4s infinite}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
-.upd-txt{font-family:var(--mono);font-size:10px;color:var(--muted)}
-.speed-badge{font-family:var(--mono);font-size:10px;color:var(--teal);background:rgba(0,191,165,.1);border:1px solid rgba(0,191,165,.3);padding:3px 8px;border-radius:6px}
-.btn-ref{background:var(--border);border:1px solid var(--border2);color:var(--accent);font-family:var(--mono);font-size:10px;padding:4px 11px;border-radius:6px;cursor:pointer;transition:all .2s}
-.btn-ref:hover{background:var(--accent);color:var(--bg)}
+/* ══ TOPBAR ════════════════════════════════════════════════════ */
+.topbar{
+  position:sticky;top:0;z-index:200;
+  background:rgba(8,12,18,.95);
+  backdrop-filter:blur(24px) saturate(180%);
+  border-bottom:1px solid var(--b1);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 20px;height:52px;
+  gap:12px;
+}
+.tb-brand{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.tb-logo{
+  font-family:var(--display);font-size:22px;font-weight:800;
+  letter-spacing:.06em;color:var(--cyan);
+  text-shadow:0 0 20px rgba(0,229,255,.3);
+}
+.tb-badge{font-family:var(--mono);font-size:9px;color:var(--t3);letter-spacing:.12em;line-height:1.2}
+.tb-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.live-pill{display:flex;align-items:center;gap:5px;background:var(--green-bg);border:1px solid rgba(0,214,143,.3);color:var(--green);font-family:var(--mono);font-size:10px;padding:3px 10px;border-radius:100px;letter-spacing:.08em}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:blink 1.4s infinite}
+@keyframes blink{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.3;transform:scale(.7)}}
+.tb-time{font-family:var(--mono);font-size:10px;color:var(--t3)}
+.tb-speed{font-family:var(--mono);font-size:10px;color:var(--cyan);background:var(--cyan-bg);border:1px solid rgba(0,229,255,.2);padding:2px 8px;border-radius:4px}
+.btn-sm{background:var(--bg2);border:1px solid var(--b2);color:var(--t2);font-family:var(--mono);font-size:10px;padding:4px 10px;border-radius:5px;cursor:pointer;transition:all .2s;letter-spacing:.06em}
+.btn-sm:hover{background:var(--cyan);color:var(--bg0);border-color:var(--cyan)}
+.btn-tv{background:var(--violet-bg);border:1px solid rgba(155,109,255,.3);color:var(--violet);font-family:var(--mono);font-size:10px;padding:4px 10px;border-radius:5px;cursor:pointer;transition:all .2s}
+.btn-tv:hover{background:var(--violet);color:#fff}
 
-/* ── HERO ── */
-.hero{border-bottom:1px solid var(--border);padding:20px 20px 16px;position:relative;overflow:hidden}
-.hero-grid{position:absolute;inset:0;background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);background-size:40px 40px;opacity:.18}
-.hero-glow{position:absolute;top:-60px;right:-60px;width:300px;height:300px;border-radius:50%;background:radial-gradient(circle,rgba(0,212,255,.06) 0%,transparent 70%)}
-.hero-inner{position:relative;z-index:1;max-width:1400px;margin:0 auto;display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:12px}
-.hero-left .title{font-family:var(--display);font-size:clamp(24px,3.5vw,44px);line-height:1;letter-spacing:.04em}
-.hero-left .title span{color:var(--accent)}
-.hero-left .meta{font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:4px;letter-spacing:.07em}
-.hero-stats{display:flex;gap:20px;flex-wrap:wrap}
-.hst{text-align:center}
-.hst-n{font-family:var(--display);font-size:22px;color:var(--accent)}
-.hst-l{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:.07em}
-
-/* ── FILTER BAR ── */
-.fbar{background:var(--surface);border-bottom:1px solid var(--border);padding:8px 20px;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
-.flbl{font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:.08em}
-select{background:var(--card);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:11px;padding:5px 26px 5px 9px;border-radius:6px;cursor:pointer;outline:none;transition:border-color .2s;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 20 20' fill='%235A7A9A'%3E%3Cpath d='M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 7px center}
-select:focus,select:hover{border-color:var(--accent)}
-.fdiv{width:1px;height:22px;background:var(--border);margin:0 2px}
-.btn-clr{background:transparent;border:1px solid var(--border2);color:var(--muted);font-family:var(--mono);font-size:10px;padding:5px 11px;border-radius:6px;cursor:pointer;transition:all .2s}
+/* ══ FILTER BAR ════════════════════════════════════════════════ */
+.fbar{
+  background:var(--bg1);
+  border-bottom:1px solid var(--b1);
+  padding:8px 20px;
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+}
+.f-label{font-family:var(--mono);font-size:9px;color:var(--t3);letter-spacing:.12em;text-transform:uppercase}
+select{
+  background:var(--bg2);border:1px solid var(--b2);color:var(--t1);
+  font-family:var(--mono);font-size:11px;
+  padding:5px 26px 5px 10px;border-radius:5px;
+  cursor:pointer;outline:none;transition:border-color .2s;
+  -webkit-appearance:none;appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 20 20' fill='%234A6282'%3E%3Cpath d='M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 7px center;
+}
+select:focus,select:hover{border-color:var(--cyan)}
+.fdiv{width:1px;height:20px;background:var(--b1);margin:0 2px}
+.btn-clr{background:transparent;border:1px solid var(--b2);color:var(--t3);font-family:var(--mono);font-size:10px;padding:5px 10px;border-radius:5px;cursor:pointer;transition:all .2s}
 .btn-clr:hover{border-color:var(--red);color:var(--red)}
-.f-info{font-family:var(--mono);font-size:10px;color:var(--accent);background:rgba(0,212,255,.08);border:1px solid rgba(0,212,255,.2);padding:3px 9px;border-radius:5px}
+.f-active{font-family:var(--mono);font-size:10px;color:var(--cyan);background:var(--cyan-bg);border:1px solid rgba(0,229,255,.2);padding:3px 8px;border-radius:4px}
 
-/* ── MAIN ── */
-.main{max-width:1400px;margin:0 auto;padding:18px 20px 80px}
+/* ══ MAIN ══════════════════════════════════════════════════════ */
+.page{max-width:1600px;margin:0 auto;padding:16px 20px 80px}
 
-/* ── KPI STRIP ── */
-.kgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:9px;margin-bottom:18px}
-.kpi{background:var(--card);border:1px solid var(--border);border-radius:11px;padding:13px 12px;position:relative;overflow:hidden;transition:transform .2s,border-color .2s}
-.kpi:hover{transform:translateY(-2px);border-color:var(--border2)}
-.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
-.ca::before{background:var(--accent)}.cg::before{background:var(--green)}
-.cr::before{background:var(--red)}.co::before{background:var(--orange)}
-.cy::before{background:var(--yellow)}.cp::before{background:var(--purple)}
-.ct::before{background:var(--teal)}
-.k-lbl{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:5px}
-.k-val{font-family:var(--display);font-size:28px;line-height:1}
-.k-val.ca{color:var(--accent)}.k-val.cg{color:var(--green)}.k-val.cr{color:var(--red)}
-.k-val.co{color:var(--orange)}.k-val.cy{color:var(--yellow)}.k-val.cp{color:var(--purple)}.k-val.ct{color:var(--teal)}
-.k-sub{font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:2px}
-.k-bdg{position:absolute;top:11px;right:9px;font-family:var(--mono);font-size:9px}
-
-/* ── SECTION ── */
+/* ══ SECTION HEADER ════════════════════════════════════════════ */
 .sh{display:flex;align-items:center;justify-content:space-between;margin:24px 0 10px;gap:10px}
-.st{font-family:var(--display);font-size:18px;letter-spacing:.06em}
-.btn-pdf{display:flex;align-items:center;gap:5px;background:rgba(0,212,255,.07);border:1px solid rgba(0,212,255,.2);color:var(--accent);font-family:var(--mono);font-size:10px;padding:5px 10px;border-radius:6px;cursor:pointer;transition:all .2s;white-space:nowrap}
-.btn-pdf:hover{background:rgba(0,212,255,.15);border-color:var(--accent)}
-.btn-pdf svg{width:11px;height:11px}
-.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.sh-left{display:flex;align-items:center;gap:8px}
+.sh-line{width:3px;height:18px;background:var(--cyan);border-radius:2px;flex-shrink:0}
+.sh-title{font-family:var(--display);font-size:17px;font-weight:700;letter-spacing:.06em;color:var(--t1)}
+.sh-tag{font-family:var(--mono);font-size:9px;color:var(--t3);background:var(--bg2);border:1px solid var(--b2);padding:2px 7px;border-radius:3px;letter-spacing:.08em}
+.btn-pdf{display:flex;align-items:center;gap:5px;background:var(--cyan-bg);border:1px solid rgba(0,229,255,.2);color:var(--cyan);font-family:var(--mono);font-size:9px;padding:4px 10px;border-radius:5px;cursor:pointer;transition:all .2s;white-space:nowrap;letter-spacing:.06em}
+.btn-pdf:hover{background:rgba(0,229,255,.15);border-color:var(--cyan)}
+.btn-pdf svg{width:10px;height:10px}
 
-/* ── CHART CARD ── */
-.cc{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden}
-.cch{padding:12px 15px 8px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)}
-.cch h3{font-family:var(--display);font-size:14px;letter-spacing:.05em}
-.mtag{font-family:var(--mono);font-size:9px;color:var(--muted);background:var(--border);padding:2px 7px;border-radius:4px}
-.ccb{padding:14px;position:relative}
-.ccb canvas{max-height:240px}
-.nd{display:flex;align-items:center;justify-content:center;height:160px;font-family:var(--mono);font-size:11px;color:var(--muted);flex-direction:column;gap:6px;opacity:.6}
-.nd-ico{font-size:24px}
+/* ══ KPI STRIP ═════════════════════════════════════════════════ */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:16px}
+.kpi{
+  background:var(--bg2);border:1px solid var(--b1);
+  border-radius:8px;padding:14px 12px;
+  position:relative;overflow:hidden;
+  transition:transform .15s,border-color .15s;
+  cursor:default;
+}
+.kpi:hover{transform:translateY(-2px);border-color:var(--b3)}
+.kpi::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px}
+.kpi.kc::after{background:var(--cyan)}.kpi.kg::after{background:var(--green)}
+.kpi.kr::after{background:var(--red)}.kpi.ka::after{background:var(--amber)}
+.kpi.kv::after{background:var(--violet)}
+.k-l{font-family:var(--mono);font-size:8.5px;color:var(--t3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px}
+.k-v{font-family:var(--display);font-size:26px;font-weight:700;line-height:1;letter-spacing:.02em}
+.k-v.kc{color:var(--cyan)}.k-v.kg{color:var(--green)}.k-v.kr{color:var(--red)}
+.k-v.ka{color:var(--amber)}.k-v.kv{color:var(--violet)}
+.k-s{font-family:var(--mono);font-size:8.5px;color:var(--t3);margin-top:3px}
+.k-badge{position:absolute;top:10px;right:10px;font-family:var(--mono);font-size:9px}
 
-/* ── PERF TABLE ── */
-.rtabs{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px}
-.rtab{background:var(--card);border:1px solid var(--border);color:var(--muted);font-family:var(--mono);font-size:10px;padding:4px 12px;border-radius:6px;cursor:pointer;transition:all .2s}
-.rtab.on,.rtab:hover{background:rgba(0,212,255,.1);border-color:var(--accent);color:var(--accent)}
-.ptbl{width:100%;border-collapse:collapse}
-.ptbl th{font-family:var(--mono);font-size:9px;letter-spacing:.1em;color:var(--muted);text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);text-transform:uppercase;white-space:nowrap}
-.ptbl td{padding:8px 10px;font-size:12px;border-bottom:1px solid rgba(26,46,74,.35);vertical-align:middle;white-space:nowrap}
-.ptbl tr:last-child td{border-bottom:none}
-.ptbl tr:hover td{background:rgba(0,212,255,.02)}
-.rnk{width:20px;height:20px;border-radius:4px;display:inline-grid;place-items:center;font-family:var(--mono);font-size:10px;font-weight:600}
-.r1{background:rgba(255,214,0,.15);color:var(--yellow)}.r2{background:rgba(180,180,180,.1);color:#B0B0B0}
-.r3{background:rgba(205,127,50,.1);color:#CD7F32}.rn{background:var(--border);color:var(--muted)}
-.pb-w{display:flex;align-items:center;gap:7px;min-width:100px}
-.pb-bg{flex:1;height:4px;border-radius:2px;background:var(--border);overflow:hidden}
-.pb-f{height:100%;border-radius:2px;transition:width .5s ease}
-.gbdg{font-family:var(--mono);font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px}
-.gex{background:rgba(0,230,118,.12);color:var(--green)}.ggd{background:rgba(255,214,0,.12);color:var(--yellow)}
-.gav{background:rgba(255,149,0,.12);color:var(--orange)}.gpr{background:rgba(255,68,68,.12);color:var(--red)}
+/* ══ GRID LAYOUTS ══════════════════════════════════════════════ */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.g-1-2{display:grid;grid-template-columns:1fr 2fr;gap:10px}
+.g-2-1{display:grid;grid-template-columns:2fr 1fr;gap:10px}
 
-/* ── HEATMAP ── */
-.hm-cell{border-radius:3px;height:26px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:9px;font-weight:600;cursor:default;transition:transform .1s}
-.hm-cell:hover{transform:scale(1.07);z-index:2;position:relative}
-.hm-lbl{font-family:var(--mono);font-size:9px;color:var(--muted);text-align:center}
+/* ══ CHART CARD ════════════════════════════════════════════════ */
+.cc{background:var(--bg2);border:1px solid var(--b1);border-radius:10px;overflow:hidden}
+.cch{padding:12px 14px 8px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--b1)}
+.cch-l{display:flex;align-items:center;gap:6px}
+.cc-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.cc-title{font-family:var(--display);font-size:13px;font-weight:600;letter-spacing:.05em;color:var(--t1)}
+.cc-tag{font-family:var(--mono);font-size:8.5px;color:var(--t3);background:var(--bg3);padding:1px 6px;border-radius:3px}
+.ccb{padding:12px}
+.ccb canvas{max-height:220px}
+.no-data{display:flex;align-items:center;justify-content:center;height:140px;flex-direction:column;gap:6px;opacity:.4}
+.no-data-ico{font-size:22px}
+.no-data-txt{font-family:var(--mono);font-size:11px;color:var(--t3)}
 
-/* ── ALERTS ── */
-.alrts{display:flex;flex-direction:column;gap:6px}
-.alrt{display:flex;align-items:center;gap:10px;border-radius:8px;padding:9px 12px}
-.alrt.high{background:rgba(255,68,68,.06);border:1px solid rgba(255,68,68,.2)}
-.alrt.warn{background:rgba(255,149,0,.06);border:1px solid rgba(255,149,0,.2)}
-.alrt.ok{background:rgba(0,230,118,.06);border:1px solid rgba(0,230,118,.2);font-family:var(--mono);font-size:11px;color:var(--green);justify-content:center;padding:14px}
+/* ══ PERFORMANCE RANKING ═══════════════════════════════════════ */
+.rank-grid{display:flex;flex-direction:column;gap:0}
+.rank-row{
+  display:flex;align-items:center;gap:10px;
+  padding:9px 14px;
+  border-bottom:1px solid var(--b1);
+  transition:background .15s;
+}
+.rank-row:last-child{border-bottom:none}
+.rank-row:hover{background:rgba(0,229,255,.03)}
+.rank-num{width:22px;height:22px;border-radius:5px;display:grid;place-items:center;font-family:var(--mono);font-size:10px;font-weight:600;flex-shrink:0}
+.rn1{background:rgba(255,176,32,.15);color:var(--amber)}
+.rn2{background:rgba(180,180,180,.1);color:#9BA8B5}
+.rn3{background:rgba(205,127,50,.1);color:#C08040}
+.rnn{background:var(--bg3);color:var(--t3)}
+.rank-info{flex:1;min-width:0}
+.rank-name{font-size:12px;font-weight:500;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rank-sub{font-family:var(--mono);font-size:9.5px;color:var(--t3);margin-top:1px}
+.rank-bar-wrap{display:flex;align-items:center;gap:6px;min-width:90px}
+.rank-bar-bg{flex:1;height:4px;border-radius:2px;background:var(--bg3);overflow:hidden}
+.rank-bar-fill{height:100%;border-radius:2px;transition:width .5s ease}
+.rank-pct{font-family:var(--mono);font-size:10px;min-width:34px;text-align:right}
+.grade-pill{font-family:var(--mono);font-size:8.5px;font-weight:600;padding:2px 6px;border-radius:3px;white-space:nowrap}
+.gex{background:rgba(0,214,143,.12);color:var(--green)}
+.ggd{background:rgba(0,229,255,.12);color:var(--cyan)}
+.gav{background:rgba(255,176,32,.12);color:var(--amber)}
+.gpr{background:rgba(255,61,61,.12);color:var(--red)}
+
+/* ══ ROLE TABS ═════════════════════════════════════════════════ */
+.rtabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px}
+.rtab{background:var(--bg2);border:1px solid var(--b1);color:var(--t3);font-family:var(--mono);font-size:9.5px;padding:4px 11px;border-radius:4px;cursor:pointer;transition:all .15s;letter-spacing:.06em}
+.rtab.on,.rtab:hover{background:var(--cyan-bg);border-color:rgba(0,229,255,.3);color:var(--cyan)}
+
+/* ══ LINE STATUS GRID ══════════════════════════════════════════ */
+.line-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:6px;padding:12px}
+.line-card{background:var(--bg3);border:1px solid var(--b1);border-radius:6px;padding:9px 10px;cursor:pointer;transition:all .15s;position:relative;overflow:hidden}
+.line-card:hover{border-color:var(--b3);transform:translateY(-1px)}
+.line-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.lc-good::before{background:var(--green)}.lc-warn::before{background:var(--amber)}.lc-bad::before{background:var(--red)}.lc-empty::before{background:var(--b3)}
+.lc-num{font-family:var(--display);font-size:13px;font-weight:700;color:var(--t2);letter-spacing:.04em}
+.lc-dhu{font-family:var(--display);font-size:18px;font-weight:800;line-height:1;margin:2px 0}
+.lc-dhu.good{color:var(--green)}.lc-dhu.warn{color:var(--amber)}.lc-dhu.bad{color:var(--red)}.lc-dhu.empty{color:var(--t4)}
+.lc-name{font-size:10px;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lc-bal{font-family:var(--mono);font-size:9px;color:var(--t3);margin-top:3px}
+
+/* ══ HOURLY CARDS ══════════════════════════════════════════════ */
+.hourly-strip{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:6px;padding:10px 12px}
+.hc{background:var(--bg3);border:1px solid var(--b1);border-radius:6px;padding:8px 9px;text-align:center;position:relative;overflow:hidden;transition:border-color .15s}
+.hc.active{border-color:var(--cyan);background:var(--cyan-bg)}
+.hc-slot{font-family:var(--mono);font-size:9px;color:var(--t3);letter-spacing:.06em}
+.hc-dhu{font-family:var(--display);font-size:20px;font-weight:800;line-height:1;margin:3px 0}
+.hc-sub{font-family:var(--mono);font-size:8.5px;color:var(--t3)}
+.hc-bar{height:3px;border-radius:1.5px;margin-top:5px;background:var(--b2);overflow:hidden}
+.hc-bar-fill{height:100%;border-radius:1.5px}
+
+/* ══ DEFECT TABLE ══════════════════════════════════════════════ */
+.dtbl{width:100%;border-collapse:collapse;font-size:12px}
+.dtbl th{font-family:var(--mono);font-size:9px;letter-spacing:.1em;color:var(--t3);text-align:left;padding:7px 10px;border-bottom:1px solid var(--b1);text-transform:uppercase;background:var(--bg3)}
+.dtbl td{padding:8px 10px;border-bottom:1px solid rgba(28,42,62,.5);vertical-align:middle}
+.dtbl tr:last-child td{border-bottom:none}
+.dtbl tr:hover td{background:rgba(0,229,255,.025)}
+.dcat-major{background:rgba(255,176,32,.12);color:var(--amber);font-family:var(--mono);font-size:9px;padding:2px 6px;border-radius:3px}
+.dcat-critical{background:rgba(255,61,61,.12);color:var(--red);font-family:var(--mono);font-size:9px;padding:2px 6px;border-radius:3px}
+.dcat-minor{background:rgba(0,214,143,.12);color:var(--green);font-family:var(--mono);font-size:9px;padding:2px 6px;border-radius:3px}
+
+/* ══ REMARKS SECTION ═══════════════════════════════════════════ */
+.remarks-list{display:flex;flex-direction:column;gap:6px;padding:10px 12px}
+.remark-item{background:var(--bg3);border:1px solid var(--b1);border-left:2px solid var(--cyan);border-radius:6px;padding:9px 12px}
+.remark-meta{display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap}
+.remark-line{font-family:var(--mono);font-size:9.5px;color:var(--cyan);background:var(--cyan-bg);padding:1px 6px;border-radius:3px}
+.remark-hour{font-family:var(--mono);font-size:9px;color:var(--t3)}
+.remark-qi{font-family:var(--mono);font-size:9px;color:var(--amber)}
+.remark-txt{font-size:12px;color:var(--t2);line-height:1.5}
+
+/* ══ ALERTS ════════════════════════════════════════════════════ */
+.alrts{display:flex;flex-direction:column;gap:5px}
+.alrt{display:flex;align-items:center;gap:10px;border-radius:6px;padding:8px 12px}
+.alrt.danger{background:var(--red-bg);border:1px solid rgba(255,61,61,.2)}
+.alrt.warn{background:var(--amber-bg);border:1px solid rgba(255,176,32,.2)}
+.alrt.ok{background:var(--green-bg);border:1px solid rgba(0,214,143,.2);font-family:var(--mono);font-size:11px;color:var(--green);justify-content:center;padding:12px}
 .alrt-ico{font-size:14px;flex-shrink:0}
-.alrt-txt strong{font-size:12px;display:block;margin-bottom:1px}
-.alrt-txt span{font-family:var(--mono);font-size:10px;color:var(--muted)}
+.alrt-body strong{font-size:12px;display:block;color:var(--t1);margin-bottom:1px}
+.alrt-body span{font-family:var(--mono);font-size:9.5px;color:var(--t3)}
 
-/* ── FOOTER ── */
-.footer{border-top:1px solid var(--border);padding:12px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px}
-.ftxt{font-family:var(--mono);font-size:10px;color:var(--muted)}
+/* ══ TV MODE ═══════════════════════════════════════════════════ */
+body.tv-mode .fbar,
+body.tv-mode .sh .btn-pdf{display:none}
+body.tv-mode .page{padding:8px 12px}
+body.tv-mode .topbar{height:44px}
+body.tv-mode .kpi-grid{gap:5px}
+body.tv-mode .cc{border-radius:6px}
 
-/* ── FADE IN ── */
-.fi{opacity:0;transform:translateY(10px);animation:fdi .4s ease forwards}
-@keyframes fdi{to{opacity:1;transform:translateY(0)}}
-.fi:nth-child(1){animation-delay:.04s}.fi:nth-child(2){animation-delay:.08s}
-.fi:nth-child(3){animation-delay:.12s}.fi:nth-child(4){animation-delay:.16s}
-.fi:nth-child(5){animation-delay:.20s}.fi:nth-child(6){animation-delay:.24s}
-.fi:nth-child(7){animation-delay:.28s}
+/* ══ FOOTER ════════════════════════════════════════════════════ */
+.footer{border-top:1px solid var(--b1);padding:10px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px}
+.ftxt{font-family:var(--mono);font-size:9.5px;color:var(--t4)}
 
-@media(max-width:900px){.g2,.g3{grid-template-columns:1fr}.kgrid{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:600px){.topbar{padding:0 12px}.main{padding:12px 12px 60px}.fbar{padding:7px 12px}.upd-txt,.logo-sub,.speed-badge{display:none}}
+/* ══ SCROLLBAR ═════════════════════════════════════════════════ */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--bg1)}
+::-webkit-scrollbar-thumb{background:var(--b3);border-radius:3px}
+
+/* ══ RESPONSIVE ════════════════════════════════════════════════ */
+@media(max-width:900px){.g2,.g3,.g-1-2,.g-2-1{grid-template-columns:1fr}.kpi-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:600px){.topbar{padding:0 12px}.page{padding:10px 10px 60px}.fbar{padding:6px 10px}.tb-time,.tb-badge,.tb-speed{display:none}}
 </style>
 </head>
 <body>
 
-<!-- LOADER -->
-<div class="loader" id="ldr">
-  <div class="spin"></div>
-  <div class="load-txt">LOADING DASHBOARD</div>
-  <div class="load-bar-wrap"><div class="load-bar" id="loadBar"></div></div>
-  <div class="load-step" id="loadStep">Connecting to Google Sheet...</div>
+<!-- BOOT SCREEN -->
+<div class="boot" id="boot">
+  <div class="boot-logo">AmanDHU</div>
+  <div class="boot-sub">Quality Command Center</div>
+  <div class="boot-bar"><div class="boot-fill" id="bootFill"></div></div>
+  <div class="boot-step" id="bootStep">Initializing...</div>
 </div>
 
 <!-- ERROR -->
-<div class="err-state" id="errState">
+<div class="err-screen" id="errScreen">
   <div class="err-ico">⚠️</div>
-  <div class="err-ttl" id="errTtl">Connection Failed</div>
-  <div class="err-msg" id="errMsg">—</div>
-  <div class="err-box" id="errBox"></div>
-  <button class="btn-ref" onclick="location.reload()" style="margin-top:10px">↻ Retry</button>
+  <div class="err-h" id="errH">Connection Failed</div>
+  <div class="err-body" id="errBody">—</div>
+  <div class="err-fix" id="errFix"></div>
+  <button class="btn-sm" onclick="location.reload()" style="margin-top:12px">↻ RETRY</button>
 </div>
 
 <!-- MAIN WRAP -->
 <div id="wrap" style="display:none">
 
+<!-- TOPBAR -->
 <div class="topbar">
-  <div class="logo">
-    <div class="logo-mark">D</div>
-    <div>
-      <div class="logo-text">DHU DASHBOARD</div>
-      <div class="logo-sub">QUALITY MANAGEMENT SYSTEM</div>
-    </div>
+  <div class="tb-brand">
+    <div class="tb-logo">AmanDHU</div>
+    <div class="tb-badge">QUALITY COMMAND CENTER<br>GARMENTS FACTORY MONITORING</div>
   </div>
-  <div class="tb-r">
-    <div class="live"><div class="live-dot"></div>LIVE</div>
-    <div class="speed-badge" id="speedBadge">—</div>
-    <div class="upd-txt" id="updTxt">—</div>
-    <button class="btn-ref" onclick="loadAll()">↻ REFRESH</button>
+  <div class="tb-right">
+    <div class="live-pill"><div class="live-dot"></div>LIVE</div>
+    <div class="tb-speed" id="tbSpeed">—</div>
+    <div class="tb-time" id="tbTime">—</div>
+    <button class="btn-tv" onclick="toggleTV()">⊞ TV MODE</button>
+    <button class="btn-sm" onclick="loadAll()">↻ REFRESH</button>
   </div>
 </div>
 
-<div class="hero">
-  <div class="hero-grid"></div>
-  <div class="hero-glow"></div>
-  <div class="hero-inner">
-    <div class="hero-left">
-      <div class="title">REAL-TIME <span>QUALITY</span> ANALYTICS</div>
-      <div class="meta" id="heroMeta">—</div>
-    </div>
-    <div class="hero-stats">
-      <div class="hst"><div class="hst-n" id="hUnits">—</div><div class="hst-l">UNITS</div></div>
-      <div class="hst"><div class="hst-n" id="hLines">—</div><div class="hst-l">LINES</div></div>
-      <div class="hst"><div class="hst-n" id="hStaff">—</div><div class="hst-l">STAFF</div></div>
-      <div class="hst"><div class="hst-n" id="hRows">—</div><div class="hst-l">TOTAL ROWS</div></div>
-    </div>
-  </div>
-</div>
-
+<!-- FILTER BAR -->
 <div class="fbar">
-  <span class="flbl">FILTER:</span>
+  <span class="f-label">Filter:</span>
   <select id="fUnit" onchange="applyF()"><option value="">All Units</option></select>
   <select id="fLine" onchange="applyF()"><option value="">All Lines</option></select>
   <select id="fAO"   onchange="applyF()"><option value="">All AO</option></select>
-  <select id="fRole" onchange="applyF()">
-    <option value="">All Roles</option>
-    <option>QI</option><option>Line Quality</option>
-    <option>Controller</option><option>Floor IC</option>
-  </select>
+  <select id="fStyle" onchange="applyF()"><option value="">All Styles</option></select>
+  <select id="fColor" onchange="applyF()"><option value="">All Colors</option></select>
   <select id="fDate" onchange="applyF()"><option value="">All Dates</option></select>
   <div class="fdiv"></div>
   <button class="btn-clr" onclick="clearF()">✕ Clear</button>
-  <span class="f-info" id="fInfo" style="display:none"></span>
+  <span class="f-active" id="fActive" style="display:none"></span>
 </div>
 
-<div class="main">
+<div class="page" id="page">
 
-  <div class="kgrid" id="kgrid">
-    <div class="kpi ca fi"><div class="k-lbl">Avg Sewing DHU%</div><div class="k-val ca" id="kDHU">0.0%</div><div class="k-sub">Target ≤ 2.5%</div><div class="k-bdg" id="kDHUt"></div></div>
-    <div class="kpi cr fi"><div class="k-lbl">Finishing DHU%</div><div class="k-val cr" id="kFin">0.0%</div><div class="k-sub">Target ≤ 3.0%</div></div>
-    <div class="kpi cg fi"><div class="k-lbl">Production Eff%</div><div class="k-val cg" id="kEff">0.0%</div><div class="k-sub">Target ≥ 85%</div></div>
-    <div class="kpi co fi"><div class="k-lbl">Total Defects</div><div class="k-val co" id="kDef">0</div><div class="k-sub">Filtered period</div></div>
-    <div class="kpi cy fi"><div class="k-lbl">Table Balance</div><div class="k-val cy" id="kBal">0</div><div class="k-sub">Max pending pcs</div></div>
-    <div class="kpi cp fi"><div class="k-lbl">False Reports</div><div class="k-val cp" id="kFlg">0</div><div class="k-sub">🚨 Flagged rows</div></div>
-    <div class="kpi ct fi"><div class="k-lbl">Data Coverage</div><div class="k-val ct" id="kDays">0</div><div class="k-sub">Days of data</div></div>
+  <!-- ── KPI STRIP ─────────────────────────────────────────── -->
+  <div class="kpi-grid" id="kgrid">
+    <div class="kpi kc"><div class="k-l">Sewing DHU%</div><div class="k-v kc" id="kDHU">—</div><div class="k-s">Target ≤ 2.5%</div><div class="k-badge" id="kDHUt"></div></div>
+    <div class="kpi kr"><div class="k-l">Finishing DHU%</div><div class="k-v kr" id="kFinDHU">—</div><div class="k-s">Target ≤ 3.0%</div></div>
+    <div class="kpi kg"><div class="k-l">Prod Efficiency%</div><div class="k-v kg" id="kEff">—</div><div class="k-s">Target ≥ 85%</div></div>
+    <div class="kpi ka"><div class="k-l">Total Defects</div><div class="k-v ka" id="kDef">—</div><div class="k-s">Filtered period</div></div>
+    <div class="kpi ka"><div class="k-l">Table Balance</div><div class="k-v ka" id="kBal">—</div><div class="k-s">Max pending pcs</div></div>
+    <div class="kpi kv"><div class="k-l">False Reports 🚨</div><div class="k-v kv" id="kFlag">—</div><div class="k-s">QC > Production</div></div>
+    <div class="kpi kc"><div class="k-l">QC Checked</div><div class="k-v kc" id="kChecked">—</div><div class="k-s">Total pcs</div></div>
+    <div class="kpi kg"><div class="k-l">Data Rows</div><div class="k-v kg" id="kRows">—</div><div class="k-s">Hourly entries</div></div>
   </div>
 
-  <!-- ROW 1: DHU Trend + Production -->
-  <div class="sh"><div class="st">📈 DHU TREND & PRODUCTION</div><button class="btn-pdf" onclick="xpdf('r1')"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/><path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/></svg>PDF A4</button></div>
+  <!-- ── ROW 1: Hourly Trend + Production Gap ───────────────── -->
+  <div class="sh" id="sh1">
+    <div class="sh-left"><div class="sh-line"></div><div class="sh-title">HOURLY PERFORMANCE</div><span class="sh-tag">LIVE TREND</span></div>
+    <button class="btn-pdf" onclick="xpdf('r1')"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/><path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/></svg>PDF</button>
+  </div>
+  <!-- Hourly cards -->
+  <div class="cc" style="margin-bottom:10px">
+    <div class="cch"><div class="cch-l"><div class="cc-dot" style="background:var(--cyan)"></div><div class="cc-title">HOUR-BY-HOUR DHU% CARDS</div></div><span class="cc-tag">EACH SLOT</span></div>
+    <div class="hourly-strip" id="hourlyCards"></div>
+  </div>
   <div class="g2" id="r1">
-    <div class="cc"><div class="cch"><h3>HOURLY DHU% TREND</h3><span class="mtag">LAST 7 DAYS AVG</span></div><div class="ccb"><canvas id="cDHU"></canvas></div></div>
-    <div class="cc"><div class="cch"><h3>PRODUCTION vs QC CHECKED</h3><span class="mtag">HOURLY pcs</span></div><div class="ccb"><canvas id="cProd"></canvas></div></div>
+    <div class="cc"><div class="cch"><div class="cch-l"><div class="cc-dot" style="background:var(--cyan)"></div><div class="cc-title">DHU% TREND</div></div><span class="cc-tag">SEWING</span></div><div class="ccb"><canvas id="cDHU"></canvas></div></div>
+    <div class="cc"><div class="cch"><div class="cch-l"><div class="cc-dot" style="background:var(--green)"></div><div class="cc-title">PRODUCTION vs QC GAP</div></div><span class="cc-tag">PCS/HR</span></div><div class="ccb"><canvas id="cGap"></canvas></div></div>
   </div>
 
-  <!-- ROW 2: Defect + Unit DHU -->
-  <div class="sh"><div class="st">❌ DEFECT ANALYSIS</div><button class="btn-pdf" onclick="xpdf('r2')"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/><path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/></svg>PDF A4</button></div>
-  <div class="g2" id="r2">
-    <div class="cc"><div class="cch"><h3>TOP DEFECT TYPES — PARETO</h3><span class="mtag">RANKED</span></div><div class="ccb"><canvas id="cPareto"></canvas></div></div>
-    <div class="cc"><div class="cch"><h3>UNIT-WISE DHU%</h3><span class="mtag">ALL 7 UNITS</span></div><div class="ccb"><canvas id="cUnit"></canvas></div></div>
+  <!-- ── ROW 2: Line Status + Defect Pareto ─────────────────── -->
+  <div class="sh" id="sh2">
+    <div class="sh-left"><div class="sh-line" style="background:var(--red)"></div><div class="sh-title">LINE STATUS & DEFECT ANALYSIS</div><span class="sh-tag">ROOT CAUSE</span></div>
+    <button class="btn-pdf" onclick="xpdf('r2')"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/><path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/></svg>PDF</button>
+  </div>
+  <div class="g-1-2" id="r2">
+    <div class="cc"><div class="cch"><div class="cch-l"><div class="cc-dot" style="background:var(--red)"></div><div class="cc-title">LINE DHU STATUS</div></div><span class="cc-tag">ALL LINES</span></div><div id="lineGrid" style="overflow-y:auto;max-height:320px"><div class="line-grid" id="lineCards"></div></div></div>
+    <div class="cc"><div class="cch"><div class="cch-l"><div class="cc-dot" style="background:var(--amber)"></div><div class="cc-title">TOP DEFECTS — PARETO</div></div><span class="cc-tag">RANKED</span></div><div class="ccb"><canvas id="cPareto"></canvas></div></div>
   </div>
 
-  <!-- ROW 3: AO + Heatmap -->
-  <div class="sh"><div class="st">📦 AO / STYLE ANALYSIS</div><button class="btn-pdf" onclick="xpdf('r3')"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/><path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/></svg>PDF A4</button></div>
+  <!-- ── ROW 3: Table Balance + Unit Comparison ─────────────── -->
+  <div class="sh" id="sh3">
+    <div class="sh-left"><div class="sh-line" style="background:var(--amber)"></div><div class="sh-title">TABLE BALANCE & UNIT OVERVIEW</div><span class="sh-tag">BOTTLENECK</span></div>
+    <button class="btn-pdf" onclick="xpdf('r3')"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/><path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/></svg>PDF</button>
+  </div>
   <div class="g2" id="r3">
-    <div class="cc"><div class="cch"><h3>AO: SEWING vs FINISHING DHU%</h3><span class="mtag">COMPARISON</span></div><div class="ccb"><canvas id="cAO"></canvas></div></div>
-    <div class="cc"><div class="cch"><h3>LINE DHU% HEATMAP</h3><span class="mtag">BY LINE</span></div><div id="hmWrap" style="overflow-x:auto;padding:12px"><div class="nd"><div class="nd-ico">⌛</div>Loading...</div></div></div>
+    <div class="cc"><div class="cch"><div class="cch-l"><div class="cc-dot" style="background:var(--amber)"></div><div class="cc-title">TABLE BALANCE BY LINE</div></div><span class="cc-tag">PENDING pcs</span></div><div class="ccb"><canvas id="cBalance"></canvas></div></div>
+    <div class="cc"><div class="cch"><div class="cch-l"><div class="cc-dot" style="background:var(--cyan)"></div><div class="cc-title">UNIT-WISE DHU%</div></div><span class="cc-tag">7 UNITS</span></div><div class="ccb"><canvas id="cUnit"></canvas></div></div>
   </div>
 
-  <!-- ROW 4: Daily trend -->
-  <div class="sh"><div class="st">📅 DAILY TREND</div><button class="btn-pdf" onclick="xpdf('r4')"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/><path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/></svg>PDF A4</button></div>
-  <div class="g2" id="r4">
-    <div class="cc"><div class="cch"><h3>DAILY DHU% TREND</h3><span class="mtag">SEWING vs FINISHING</span></div><div class="ccb"><canvas id="cDaily"></canvas></div></div>
-    <div class="cc"><div class="cch"><h3>DAILY PRODUCTION EFFICIENCY</h3><span class="mtag">%</span></div><div class="ccb"><canvas id="cDailyEff"></canvas></div></div>
+  <!-- ── ROW 4: AO/Style/Color Analysis ─────────────────────── -->
+  <div class="sh" id="sh4">
+    <div class="sh-left"><div class="sh-line" style="background:var(--violet)"></div><div class="sh-title">AO / STYLE / COLOR ANALYSIS</div><span class="sh-tag">ORDER TRACKING</span></div>
+    <button class="btn-pdf" onclick="xpdf('r4')"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/><path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/></svg>PDF</button>
+  </div>
+  <div class="g3" id="r4">
+    <div class="cc"><div class="cch"><div class="cch-l"><div class="cc-dot" style="background:var(--violet)"></div><div class="cc-title">AO-WISE DHU%</div></div><span class="cc-tag">SEWING vs FINISHING</span></div><div class="ccb"><canvas id="cAO"></canvas></div></div>
+    <div class="cc"><div class="cch"><div class="cch-l"><div class="cc-dot" style="background:var(--cyan)"></div><div class="cc-title">STYLE-WISE DHU%</div></div><span class="cc-tag">BY STYLE</span></div><div class="ccb"><canvas id="cStyle"></canvas></div></div>
+    <div class="cc"><div class="cch"><div class="cch-l"><div class="cc-dot" style="background:var(--amber)"></div><div class="cc-title">DEFECT BY CATEGORY</div></div><span class="cc-tag">MAJOR/CRITICAL/MINOR</span></div><div class="ccb"><canvas id="cDefCat"></canvas></div></div>
   </div>
 
-  <!-- ROW 5: Staff Performance -->
-  <div class="sh"><div class="st">🏆 STAFF PERFORMANCE</div><button class="btn-pdf" onclick="xpdf('r5')"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/><path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/></svg>PDF A4</button></div>
+  <!-- ── ROW 5: Accountability Ranking ──────────────────────── -->
+  <div class="sh" id="sh5">
+    <div class="sh-left"><div class="sh-line" style="background:var(--green)"></div><div class="sh-title">ACCOUNTABILITY RANKING</div><span class="sh-tag">PERFORMANCE</span></div>
+    <button class="btn-pdf" onclick="xpdf('r5')"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/><path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/></svg>PDF</button>
+  </div>
   <div id="r5">
     <div class="rtabs">
-      <div class="rtab on" onclick="rTab('all',this)">All</div>
-      <div class="rtab" onclick="rTab('QI',this)">QI</div>
-      <div class="rtab" onclick="rTab('Line Quality',this)">Line Quality</div>
+      <div class="rtab on" onclick="rTab('LQ',this)">Line Quality</div>
       <div class="rtab" onclick="rTab('Controller',this)">Controller</div>
-      <div class="rtab" onclick="rTab('Floor IC',this)">Floor IC</div>
+      <div class="rtab" onclick="rTab('FloorIC',this)">Floor IC</div>
+      <div class="rtab" onclick="rTab('QI',this)">QI</div>
     </div>
     <div class="cc">
-      <div class="cch"><h3>INDIVIDUAL PERFORMANCE BOARD</h3><span class="mtag" id="pCnt">0 STAFF</span></div>
-      <div style="overflow-x:auto">
-        <table class="ptbl">
-          <thead><tr>
-            <th>#</th><th>Staff ID</th><th>Name</th><th>Role</th>
-            <th>Unit</th><th>Line</th><th>Score</th><th>Grade</th><th>Key Metric</th>
-          </tr></thead>
-          <tbody id="pBody"></tbody>
+      <div class="cch"><div class="cch-l"><div class="cc-dot" style="background:var(--green)"></div><div class="cc-title" id="rankTitle">LINE QUALITY PERFORMANCE</div></div><span class="cc-tag" id="rankCnt">0</span></div>
+      <div style="overflow-x:auto"><div class="rank-grid" id="rankList"></div></div>
+    </div>
+  </div>
+
+  <!-- ── ROW 6: Finishing Failure Analysis ──────────────────── -->
+  <div class="sh" id="sh6">
+    <div class="sh-left"><div class="sh-line" style="background:var(--red)"></div><div class="sh-title">FINISHING FAILURE ANALYSIS</div><span class="sh-tag">ROOT CAUSE</span></div>
+    <button class="btn-pdf" onclick="xpdf('r6')"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/><path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/></svg>PDF</button>
+  </div>
+  <div class="g2" id="r6">
+    <div class="cc"><div class="cch"><div class="cch-l"><div class="cc-dot" style="background:var(--red)"></div><div class="cc-title">FINISHING vs SEWING DHU</div></div><span class="cc-tag">AO COMPARISON</span></div><div class="ccb"><canvas id="cFinComp"></canvas></div></div>
+    <div class="cc">
+      <div class="cch"><div class="cch-l"><div class="cc-dot" style="background:var(--red)"></div><div class="cc-title">FINISHING DEFECT LOG</div></div><span class="cc-tag">PROBLEMATIC AOs</span></div>
+      <div style="overflow-x:auto;max-height:280px">
+        <table class="dtbl" id="finTable">
+          <thead><tr><th>AO</th><th>Style</th><th>Color</th><th>Inspected</th><th>Defects</th><th>DHU%</th><th>Status</th></tr></thead>
+          <tbody id="finBody"></tbody>
         </table>
       </div>
     </div>
   </div>
 
-  <!-- ROW 6: Controller + Floor IC -->
-  <div class="sh"><div class="st">🎯 CONTROLLER & FLOOR IC</div><button class="btn-pdf" onclick="xpdf('r6')"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/><path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/></svg>PDF A4</button></div>
-  <div class="g2" id="r6">
-    <div class="cc"><div class="cch"><h3>CONTROLLER DHU%</h3><span class="mtag">COMBINED LINES</span></div><div class="ccb"><canvas id="cCtrl"></canvas></div></div>
-    <div class="cc"><div class="cch"><h3>FLOOR IC DHU%</h3><span class="mtag">COMBINED LINES</span></div><div class="ccb"><canvas id="cFIC"></canvas></div></div>
+  <!-- ── ROW 7: Alerts + Remarks ────────────────────────────── -->
+  <div class="sh" id="sh7">
+    <div class="sh-left"><div class="sh-line" style="background:var(--red)"></div><div class="sh-title">ALERTS & REMARKS</div><span class="sh-tag">LIVE FEED</span></div>
+    <button class="btn-pdf" onclick="xpdf('r7')"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/><path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/></svg>PDF</button>
+  </div>
+  <div class="g2" id="r7">
+    <div class="cc">
+      <div class="cch"><div class="cch-l"><div class="cc-dot" style="background:var(--red)"></div><div class="cc-title">ACTIVE ALERTS</div></div><span class="cc-tag" id="alertCnt">0</span></div>
+      <div class="alrts" id="alertList" style="padding:10px 12px"></div>
+    </div>
+    <div class="cc">
+      <div class="cch"><div class="cch-l"><div class="cc-dot" style="background:var(--amber)"></div><div class="cc-title">REMARKS LOG</div></div><span class="cc-tag">INSPECTOR NOTES</span></div>
+      <div class="remarks-list" id="remarksList" style="max-height:280px;overflow-y:auto"></div>
+    </div>
   </div>
 
-  <!-- ROW 7: Alerts -->
-  <div class="sh"><div class="st">🚨 ALERTS & FLAGS</div><button class="btn-pdf" onclick="xpdf('r7')"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/><path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/></svg>PDF A4</button></div>
-  <div class="alrts" id="r7"></div>
-
-</div><!-- .main -->
+</div><!-- .page -->
 
 <div class="footer">
-  <div class="ftxt">DHU Quality Management System · Summary Sheets → Fast Dashboard</div>
-  <div class="ftxt" id="fSheet">—</div>
+  <div class="ftxt">AmanDHU Quality Command Center · Garments Factory Monitoring System</div>
+  <div class="ftxt" id="fSheet">Configure SHEET_ID to connect live data</div>
 </div>
 
 </div><!-- #wrap -->
 
 <script>
-// ══════════════════════════════════════════════════════════
-// ⚙️  CONFIG
-// ══════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
+// ⚙️  CONFIG — তোমার Google Sheet ID এখানে বসাও
+// ══════════════════════════════════════════════════════════════════
 const CFG = {
-  // ⚠️ তোমার Google Sheet ID এখানে বসাও
-  SHEET_ID: "1aFJcsB4qaAHZy58swjzXlDR9S7VLTIm4gUAVqIw5FjU",
+  SHEET_ID: "YOUR_GOOGLE_SHEET_ID_HERE",
 
-  // Summary Sheets (Apps Script তৈরি করবে)
+  // তোমার Google Sheet-এর Sheet নামগুলো হুবহু এই রকম থাকতে হবে
   SHEETS: {
-    DAILY:   "Sum_Daily",
-    UNIT:    "Sum_Unit",
-    LINE:    "Sum_Line",
-    STAFF:   "Sum_Staff",
-    AO:      "Sum_AO",
-    DEFECT:  "Sum_Defect",
-    HOURLY:  "Sum_Hourly",
-    ALERT:   "Sum_Alert",
-    META:    "Sum_Meta",
+    HOURLY:     "Hourly_Quality_Data",
+    FINISHING:  "Finishing_DHU_Data",
+    LINE_MAP:   "Line_Mapping",
+    QUALITY:    "Quality_Info",
+    AO:         "AO_Style_Master",
+    DEFECT:     "Defect_Master",
   },
 
-  TARGET: { SEW_DHU:2.5, FIN_DHU:3.0, PROD_EFF:85 },
+  // Performance targets
+  T: { SEW_DHU:2.5, FIN_DHU:3.0, PROD_EFF:85, BAL_WARN:50 },
+
+  // Auto refresh: 5 minutes
   REFRESH: 5 * 60 * 1000,
 };
 
-// ══════════════════════════════════════════════════════════
-// STATE — only summary data, never raw
-// ══════════════════════════════════════════════════════════
-let D = {
-  daily:[], unit:[], line:[], staff:[], ao:[],
-  defect:[], hourly:[], alert:[], meta:[],
-};
-let charts = {};
-let roleF  = 'all';
-let fUnit='', fLine='', fAO='', fRole='', fDate='';
-let loadStart = 0;
+// ══════════════════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════════════════
+let RAW=[], FIN=[], LMAP=[], QI=[], AO=[], DEFMASTER=[];
+let FILT=[];
+let charts={}, rankMode='LQ';
+let fUnit='',fLine='',fAO='',fStyle='',fColor='',fDate='';
+let loadStart=0;
 
-// ══════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
 // FETCH
-// ══════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
 function csvUrl(sheet){
   return `https://docs.google.com/spreadsheets/d/${CFG.SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheet)}`;
 }
-
-async function fetchSheet(name, progress){
-  setStep(`Loading ${name}...`, progress);
+async function fetchCSV(name, pct){
+  setProgress(pct, `Loading ${name}...`);
   const res = await fetch(csvUrl(name));
-  if(!res.ok) throw new Error(`Cannot fetch sheet: "${name}" (${res.status}). Make sure Apps Script has run and Summary sheets exist.`);
+  if(!res.ok) throw new Error(`Sheet "${name}" fetch failed (${res.status}). Check SHEET_ID and Publish to Web.`);
   const text = await res.text();
   if(text.includes('Moved Temporarily')||text.includes('Sign in'))
-    throw new Error(`Sheet "${name}" is not published. Go to File → Share → Publish to Web.`);
-  const parsed = Papa.parse(text, {header:true, skipEmptyLines:true, dynamicTyping:true});
-  return parsed.data.filter(r => Object.values(r).some(v => v!==null && v!==''));
+    throw new Error(`Sheet "${name}" not published. Go to File → Share → Publish to Web → CSV.`);
+  const r = Papa.parse(text, {header:true, skipEmptyLines:true, dynamicTyping:false});
+  return r.data.filter(row=>Object.values(row).some(v=>v!==null&&v!==''));
+}
+function setProgress(pct, msg){
+  document.getElementById('bootFill').style.width = pct+'%';
+  document.getElementById('bootStep').textContent = msg;
 }
 
-function setStep(msg, pct){
-  document.getElementById('loadStep').textContent = msg;
-  document.getElementById('loadBar').style.width = pct + '%';
-}
-
-// ══════════════════════════════════════════════════════════
-// LOAD — only 9 small summary sheets (fast!)
-// ══════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
+// LOAD ALL SHEETS
+// ══════════════════════════════════════════════════════════════════
 async function loadAll(){
   loadStart = performance.now();
-  document.getElementById('ldr').classList.remove('off');
-  document.getElementById('loadBar').style.width = '0%';
+  document.getElementById('boot').classList.remove('off');
+  setProgress(0,'Connecting...');
 
-  if(CFG.SHEET_ID === 'YOUR_GOOGLE_SHEET_ID_HERE'){
-    showErr('Sheet ID Not Set',
-      'CFG.SHEET_ID তে তোমার Google Sheet ID বসাও।',
-      '1. Google Sheet URL থেকে ID copy করো\n2. Dashboard HTML file এ CFG.SHEET_ID = "ID HERE" বসাও\n3. File save করো ও reload করো');
+  if(CFG.SHEET_ID==='YOUR_GOOGLE_SHEET_ID_HERE'){
+    showErr('Sheet ID Not Configured',
+      'Dashboard-এর HTML file এ CFG.SHEET_ID তে তোমার Google Sheet ID বসাও।',
+      '1. Google Sheet URL থেকে /d/ এর পরের অংশ copy করো\n2. HTML file এ CFG.SHEET_ID = "YOUR_ID" এ বসাও\n3. File save করে reload করো');
     return;
   }
 
   try {
-    // Parallel fetch — সব summary একসাথে
-    const [daily,unit,line,staff,ao,defect,hourly,alert,meta] = await Promise.all([
-      fetchSheet(CFG.SHEETS.DAILY,  15),
-      fetchSheet(CFG.SHEETS.UNIT,   25),
-      fetchSheet(CFG.SHEETS.LINE,   35),
-      fetchSheet(CFG.SHEETS.STAFF,  45),
-      fetchSheet(CFG.SHEETS.AO,     55),
-      fetchSheet(CFG.SHEETS.DEFECT, 65),
-      fetchSheet(CFG.SHEETS.HOURLY, 75),
-      fetchSheet(CFG.SHEETS.ALERT,  85),
-      fetchSheet(CFG.SHEETS.META,   95),
+    // Fetch all sheets in parallel for speed
+    const [hourly, fin, lmap, qi, ao, defm] = await Promise.all([
+      fetchCSV(CFG.SHEETS.HOURLY,   20),
+      fetchCSV(CFG.SHEETS.FINISHING,40),
+      fetchCSV(CFG.SHEETS.LINE_MAP, 55),
+      fetchCSV(CFG.SHEETS.QUALITY,  65),
+      fetchCSV(CFG.SHEETS.AO,       75),
+      fetchCSV(CFG.SHEETS.DEFECT,   85),
     ]);
 
-    D = {daily,unit,line,staff,ao,defect,hourly,alert,meta};
+    RAW=hourly; FIN=fin; LMAP=lmap; QI=qi; AO=ao; DEFMASTER=defm;
 
-    if(D.daily.length===0 && D.unit.length===0)
-      throw new Error('Summary sheets are empty. Run Apps Script first: Extensions → Apps Script → Run → generateAllSummaries');
+    if(RAW.length===0) throw new Error('Hourly_Quality_Data sheet is empty. Please add data via AppSheet.');
 
-    setStep('Rendering...', 100);
+    setProgress(95,'Rendering...');
 
-    document.getElementById('wrap').style.display = 'block';
-    document.getElementById('errState').classList.remove('on');
+    document.getElementById('wrap').style.display='block';
+    document.getElementById('errScreen').classList.remove('on');
+    FILT=[...RAW];
 
     populateFilters();
-    setHero();
     renderAll();
 
-    const elapsed = ((performance.now() - loadStart)/1000).toFixed(1);
-    document.getElementById('speedBadge').textContent = `⚡ ${elapsed}s`;
-    document.getElementById('updTxt').textContent = 'Updated: ' + new Date().toLocaleTimeString();
-    document.getElementById('fSheet').textContent = 'Sheet: ' + CFG.SHEET_ID.substring(0,18) + '...';
+    const elapsed = ((performance.now()-loadStart)/1000).toFixed(1);
+    document.getElementById('tbSpeed').textContent = `⚡ ${elapsed}s`;
+    document.getElementById('tbTime').textContent = new Date().toLocaleTimeString();
+    document.getElementById('fSheet').textContent = `Sheet: ${CFG.SHEET_ID.substring(0,16)}... · ${RAW.length} rows`;
+
+    setProgress(100,'Ready');
 
   } catch(e){
     showErr('Load Failed', e.message,
-      '✅ Apps Script চলেছে কিনা দেখো (Sum_Daily sheet আছে কিনা)\n✅ Sheet Publish to Web করা আছে কিনা\n✅ Sheet ID সঠিক কিনা');
+      '✅ Google Sheet Publish to Web করা আছে কিনা দেখো\n✅ SHEET_ID সঠিক কিনা দেখো\n✅ Sheet নামগুলো হুবহু মিলছে কিনা দেখো');
     console.error(e);
   }
 
-  document.getElementById('ldr').classList.add('off');
+  document.getElementById('boot').classList.add('off');
 }
 
-function showErr(title, msg, fix){
-  document.getElementById('ldr').classList.add('off');
-  document.getElementById('errState').classList.add('on');
-  document.getElementById('errTtl').textContent = title;
-  document.getElementById('errMsg').textContent = msg;
-  document.getElementById('errBox').textContent = fix;
-  document.getElementById('wrap').style.display = 'none';
+function showErr(h, body, fix){
+  document.getElementById('boot').classList.add('off');
+  document.getElementById('errScreen').classList.add('on');
+  document.getElementById('errH').textContent=h;
+  document.getElementById('errBody').textContent=body;
+  document.getElementById('errFix').textContent=fix;
+  document.getElementById('wrap').style.display='none';
 }
 
-// ══════════════════════════════════════════════════════════
-// HERO STATS — from Meta sheet
-// ══════════════════════════════════════════════════════════
-function setHero(){
-  const get = k => { const r=D.meta.find(m=>m.Key===k); return r?r.Value:'—'; };
-  setText('hUnits', get('Active_Units'));
-  setText('hLines', get('Active_Lines'));
-  setText('hStaff', get('Active_Staff'));
-  setText('hRows',  Number(get('Total_Rows')||0).toLocaleString());
-  const from=get('Date_From'), to=get('Date_To');
-  document.getElementById('heroMeta').textContent =
-    `7 UNITS · ${get('Active_Lines')} LINES · Data: ${from} → ${to}`;
-}
-
-// ══════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
 // FILTERS
-// ══════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
 function populateFilters(){
-  // ✅ Unique units only — deduplicated and sorted numerically
-  const units = [...new Set(D.unit.map(r=>String(r.Unit_No||'')).filter(Boolean))]
-    .sort((a,b)=>Number(a)-Number(b));
-
-  // ✅ Unique lines only
-  const uLines = [...new Set(D.line.map(r=>String(r.Line_No||'')).filter(Boolean))].sort();
-
-  // ✅ Unique AOs only
-  const aos = [...new Set(D.ao.map(r=>String(r.AO_Number||'')).filter(Boolean))].sort();
-
-  // ✅ Unique dates only, newest first
-  const dates = [...new Set(D.daily.map(r=>String(r.Date||'').substring(0,10)).filter(Boolean))]
-    .sort().reverse();
-
-  fillSel('fUnit', units, 'All Units');
-  fillSel('fLine', uLines,'All Lines');
-  fillSel('fAO',   aos,   'All AO');
-  fillSel('fDate', dates, 'All Dates');
+  const u=[...new Set(RAW.map(r=>r.Unit_No||'').filter(Boolean))].sort((a,b)=>+a-+b);
+  const l=[...new Set(RAW.map(r=>r.Line_No||'').filter(Boolean))].sort();
+  const a=[...new Set(RAW.map(r=>r.AO_Number||'').filter(Boolean))].sort();
+  const s=[...new Set(RAW.map(r=>r.Style_No||'').filter(Boolean))].sort();
+  const c=[...new Set(RAW.map(r=>r.color||r.Color||'').filter(Boolean))].sort();
+  const d=[...new Set(RAW.map(r=>String(r.Date||'').substring(0,10)).filter(Boolean))].sort().reverse();
+  fillSel('fUnit',u,'All Units');
+  fillSel('fLine',l,'All Lines');
+  fillSel('fAO',a,'All AO');
+  fillSel('fStyle',s,'All Styles');
+  fillSel('fColor',c,'All Colors');
+  fillSel('fDate',d,'All Dates');
 }
 
-function fillSel(id, vals, ph){
-  const s=document.getElementById(id), cur=s.value;
-  s.innerHTML=`<option value="">${ph}</option>`+
-    vals.map(v=>`<option value="${v}"${String(v)===String(cur)?' selected':''}>${v}</option>`).join('');
+function fillSel(id,vals,ph){
+  const s=document.getElementById(id),cur=s.value;
+  s.innerHTML=`<option value="">${ph}</option>`+vals.map(v=>`<option value="${v}"${v===cur?' selected':''}>${v}</option>`).join('');
 }
 
 function applyF(){
-  fUnit=g('fUnit'); fLine=g('fLine'); fAO=g('fAO'); fRole=g('fRole'); fDate=g('fDate');
+  fUnit=g('fUnit'); fLine=g('fLine'); fAO=g('fAO');
+  fStyle=g('fStyle'); fColor=g('fColor'); fDate=g('fDate');
 
-  // Update line options based on unit
+  // Update line options when unit changes
   if(fUnit){
-    const filtLines=[...new Set(D.line.filter(r=>String(r.Unit_No||'')===fUnit).map(r=>String(r.Line_No||'')).filter(Boolean))].sort();
-    fillSel('fLine', filtLines, 'All Lines');
+    const ls=[...new Set(RAW.filter(r=>String(r.Unit_No||'')===fUnit).map(r=>r.Line_No||'').filter(Boolean))].sort();
+    fillSel('fLine',ls,'All Lines');
     if(fLine) document.getElementById('fLine').value=fLine;
   } else {
-    const allLines=[...new Set(D.line.map(r=>String(r.Line_No||'')).filter(Boolean))].sort();
-    fillSel('fLine', allLines, 'All Lines');
+    const ls=[...new Set(RAW.map(r=>r.Line_No||'').filter(Boolean))].sort();
+    fillSel('fLine',ls,'All Lines');
   }
   fLine=g('fLine');
 
-  // Show filter info
-  const fi=document.getElementById('fInfo');
-  const parts=[fUnit&&`Unit ${fUnit}`,fLine&&`Line ${fLine}`,fAO&&`AO ${fAO}`,fRole,fDate].filter(Boolean);
-  if(parts.length){ fi.style.display='inline-flex'; fi.textContent='Showing: '+parts.join(' · '); }
-  else             { fi.style.display='none'; }
+  FILT=RAW.filter(r=>{
+    if(fUnit  && String(r.Unit_No||'')!==fUnit)  return false;
+    if(fLine  && String(r.Line_No||'')!==fLine)  return false;
+    if(fAO    && String(r.AO_Number||'')!==fAO)  return false;
+    if(fStyle && String(r.Style_No||'')!==fStyle)return false;
+    if(fColor && String(r.color||r.Color||'')!==fColor) return false;
+    if(fDate  && String(r.Date||'').substring(0,10)!==fDate) return false;
+    return true;
+  });
+
+  const parts=[fUnit&&`Unit ${fUnit}`,fLine&&`Line ${fLine}`,fAO&&`AO ${fAO}`,fStyle,fColor,fDate].filter(Boolean);
+  const fa=document.getElementById('fActive');
+  if(parts.length){fa.style.display='inline-flex';fa.textContent=parts.join(' · ');}
+  else fa.style.display='none';
 
   renderAll();
 }
 
 function clearF(){
-  fUnit=fLine=fAO=fRole=fDate='';
-  ['fUnit','fLine','fAO','fRole','fDate'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('fInfo').style.display='none';
+  fUnit=fLine=fAO=fStyle=fColor=fDate='';
+  ['fUnit','fLine','fAO','fStyle','fColor','fDate'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('fActive').style.display='none';
+  FILT=[...RAW];
   populateFilters();
   renderAll();
 }
 
 function g(id){return document.getElementById(id).value;}
 
-// ══════════════════════════════════════════════════════════
-// FILTER HELPERS — filter summary rows
-// ══════════════════════════════════════════════════════════
-function filtLine(rows){
-  return rows.filter(r=>{
-    if(fUnit && String(r.Unit_No||'')!==fUnit) return false;
-    if(fLine && String(r.Line_No||'')!==fLine) return false;
-    return true;
-  });
-}
-function filtUnit(rows){ return fUnit ? rows.filter(r=>String(r.Unit_No||'')===fUnit) : rows; }
-function filtAO(rows)  { return fAO   ? rows.filter(r=>String(r.AO_Number||'')===fAO) : rows; }
-function filtDate(rows){ return fDate ? rows.filter(r=>String(r.Date||'').substring(0,10)===fDate) : rows; }
-function filtStaff(rows){
-  return rows.filter(r=>{
-    if(fUnit && String(r.Unit_No||'')!==fUnit) return false;
-    if(fLine && String(r.Line_No||'')!==fLine) return false;
-    if(fRole && String(r.Role||'')!==fRole) return false;
-    return true;
-  });
-}
-
-// ══════════════════════════════════════════════════════════
-// RENDER ALL
-// ══════════════════════════════════════════════════════════
-function renderAll(){
-  renderKPIs();
-  renderHourlyTrend();
-  renderProd();
-  renderPareto();
-  renderUnitDHU();
-  renderAO();
-  renderHeatmap();
-  renderDailyTrend();
-  renderDailyEff();
-  renderPerf();
-  renderCtrlFIC();
-  renderAlerts();
-}
-
-// ══════════════════════════════════════════════════════════
-// KPIs — from Unit + Daily + Meta summaries
-// ══════════════════════════════════════════════════════════
-function renderKPIs(){
-  // ✅ Aggregate properly — handle duplicate rows in summary sheets
-  const uRows = filtUnit(filtDate(D.unit));
-  const dRows = filtDate(D.daily);
-
-  // Aggregate unit rows (may have duplicates per unit)
-  let totChk=0, totDef=0, totProdT=0, totProdA=0, totFlags=0;
-  if(uRows.length){
-    // Group by Unit_No then sum
-    const seen={};
-    uRows.forEach(r=>{
-      const u=String(r.Unit_No||'');
-      if(!seen[u]) seen[u]=true; // count each unit once if already aggregated
-      totChk   += n(r.QC_Checked);
-      totDef   += n(r.Defect_Qty);
-      totProdT += n(r.Prod_Target);
-      totProdA += n(r.Prod_Actual);
-      totFlags += n(r.False_Reports);
-    });
-  } else {
-    // Use daily summary (already aggregated per day)
-    dRows.forEach(r=>{
-      totChk   += n(r.QC_Checked);
-      totDef   += n(r.Defect_Qty);
-      totProdT += n(r.Prod_Target);
-      totProdA += n(r.Prod_Actual);
-      totFlags += n(r.False_Reports);
-    });
-  }
-
-  const totBal = sumF(filtLine(D.line),'Table_Balance_Max');
-  const totDays = [...new Set(D.daily.map(r=>String(r.Date||'').substring(0,10)).filter(Boolean))].length;
-
-  const finRows   = filtAO(filtUnit(D.ao));
-  const totFinInsp= sumF(finRows,'Fin_Inspected');
-  const totFinDef = sumF(finRows,'Fin_Defect');
-
-  const dhu    = totChk    > 0 ? totDef    / totChk    * 100 : 0;
-  const eff    = totProdT  > 0 ? totProdA  / totProdT  * 100 : 0;
-  const finDHU = totFinInsp > 0 ? totFinDef / totFinInsp * 100 : 0;
-
-  setText('kDHU', dhu.toFixed(1)+'%');
-  setText('kFin',  finDHU.toFixed(1)+'%');
-  setText('kEff',  eff.toFixed(1)+'%');
-  setText('kDef',  Math.round(totDef).toLocaleString());
-  setText('kBal',  Math.round(totBal).toLocaleString());
-  setText('kFlg',  Math.round(totFlags));
-  setText('kDays', totDays);
-
-  const te=document.getElementById('kDHUt');
-  if(dhu===0)                    te.innerHTML='<span style="color:var(--muted);font-family:var(--mono);font-size:9px">No data</span>';
-  else if(dhu<=CFG.TARGET.SEW_DHU) te.innerHTML='<span style="color:var(--green);font-family:var(--mono);font-size:9px">✓ On Target</span>';
-  else                           te.innerHTML=`<span style="color:var(--red);font-family:var(--mono);font-size:9px">↑ +${(dhu-CFG.TARGET.SEW_DHU).toFixed(1)}%</span>`;
-}
-
-// ══════════════════════════════════════════════════════════
-// CHART: Hourly DHU Trend (from Sum_Hourly)
-// ══════════════════════════════════════════════════════════
-function renderHourlyTrend(){
-  const rows  = D.hourly;
-  const lbls  = rows.map(r=>String(r.Hour_Slot||'').split('-')[0]);
-  const dhus  = rows.map(r=>n(r.Sewing_DHU_Pct)||null);
-  const hasData = dhus.some(v=>v!==null && v>0);
-
-  kill('cDHU');
-  const canvas=document.getElementById('cDHU');
-  if(!hasData){ canvas.parentElement.innerHTML=ndHTML(); return; }
-
-  charts.dhu=new Chart(canvas,{
-    type:'line',
-    data:{labels:lbls, datasets:[
-      {label:'DHU%', data:dhus, borderColor:'#00D4FF', backgroundColor:'rgba(0,212,255,.1)',
-       borderWidth:2.5, pointRadius:5, pointBackgroundColor:'#00D4FF', fill:true, tension:.4, spanGaps:true},
-      {label:'Target', data:rows.map(()=>CFG.TARGET.SEW_DHU),
-       borderColor:'rgba(255,68,68,.55)', borderDash:[6,4], borderWidth:1.5, pointRadius:0, fill:false},
-    ]},
-    options: oLine('DHU %', true),
-  });
-}
-
-// ══════════════════════════════════════════════════════════
-// CHART: Production vs QC (from Sum_Hourly)
-// ══════════════════════════════════════════════════════════
-function renderProd(){
-  const rows = D.hourly;
-  const lbls = rows.map(r=>String(r.Hour_Slot||'').split('-')[0]);
-  const prod = rows.map(r=>n(r.Prod_Actual));
-  const qc   = rows.map(r=>n(r.QC_Checked));
-  const hasData = prod.some(v=>v>0)||qc.some(v=>v>0);
-
-  kill('cProd');
-  const canvas=document.getElementById('cProd');
-  if(!hasData){ canvas.parentElement.innerHTML=ndHTML(); return; }
-
-  charts.prod=new Chart(canvas,{
-    type:'bar',
-    data:{labels:lbls, datasets:[
-      {label:'Production', data:prod, backgroundColor:'rgba(0,230,118,.7)', borderRadius:4},
-      {label:'QC Checked', data:qc,   backgroundColor:'rgba(0,212,255,.7)', borderRadius:4},
-    ]},
-    options: oBar('Pieces', true),
-  });
-}
-
-// ══════════════════════════════════════════════════════════
-// CHART: Pareto (from Sum_Defect)
-// ══════════════════════════════════════════════════════════
-function renderPareto(){
-  const rows = fLine
-    ? D.defect  // Line filtered: still use overall defect summary
-    : D.defect;
-  const top  = rows.slice(0,8);
-  kill('cPareto');
-  const canvas=document.getElementById('cPareto');
-  if(!top.length){ canvas.parentElement.innerHTML=ndHTML(); return; }
-
-  charts.pareto=new Chart(canvas,{
-    type:'bar',
-    data:{labels:top.map(r=>r.Defect_Type||'?'), datasets:[
-      {label:'Count', data:top.map(r=>n(r.Count)), backgroundColor:'rgba(255,68,68,.75)', borderRadius:4, yAxisID:'y'},
-      {label:'Cumulative%', data:top.map(r=>n(r.Cumulative_Pct)), type:'line',
-       borderColor:'#FFD600', borderWidth:2, pointRadius:4, pointBackgroundColor:'#FFD600',
-       fill:false, yAxisID:'y2', tension:.3},
-    ]},
-    options:{
-      responsive:true, maintainAspectRatio:true,
-      plugins:{legend:{display:true,labels:{color:'#5A7A9A',font:{family:'JetBrains Mono',size:10},boxWidth:10}},tooltip:tOpt()},
-      scales:{x:sX(), y:{...sY('Count'),position:'left'}, y2:{...sY('%'),position:'right',min:0,max:100,grid:{display:false}}},
+// ══════════════════════════════════════════════════════════════════
+// PARSE DEFECT_TYPE_&_QTY FIELD
+// Format: "Skip Stitch-5, Raw Edge-3, Open Seam-2"
+// ══════════════════════════════════════════════════════════════════
+function parseDefects(str){
+  if(!str||!str.trim()) return {};
+  const result={};
+  // Split by comma
+  str.split(',').forEach(part=>{
+    part=part.trim();
+    if(!part) return;
+    // Match "Name-qty" or "Name- qty" or "Name -qty"
+    const m=part.match(/^(.+?)[\s-]+(\d+)\s*$/);
+    if(m){
+      const name=m[1].trim();
+      const qty=parseInt(m[2])||0;
+      if(name && qty>0) result[name]=(result[name]||0)+qty;
+    } else if(part){
+      // Just a defect name without qty — count as 1
+      result[part]=(result[part]||0)+1;
     }
   });
+  return result;
 }
 
-// ══════════════════════════════════════════════════════════
-// CHART: Unit DHU (from Sum_Unit — always all 7 units)
-// ══════════════════════════════════════════════════════════
-function renderUnitDHU(){
-  // ✅ Always show all 7 units — aggregate if duplicate rows exist
-  const units=[1,2,3,4,5,6,7];
-
-  // Aggregate Sum_Unit rows by Unit_No (in case of duplicates)
-  const unitAgg={};
-  D.unit.forEach(r=>{
-    const u=String(r.Unit_No||'').trim();
-    if(!u) return;
-    if(!unitAgg[u]) unitAgg[u]={chk:0,def:0,prodT:0,prodA:0};
-    unitAgg[u].chk   += n(r.QC_Checked);
-    unitAgg[u].def   += n(r.Defect_Qty);
-    unitAgg[u].prodT += n(r.Prod_Target);
-    unitAgg[u].prodA += n(r.Prod_Actual);
-  });
-
-  const dhus=units.map(u=>{
-    const a=unitAgg[String(u)];
-    if(!a || a.chk===0) return 0;
-    return +(a.def/a.chk*100).toFixed(2);
-  });
-
-  const colors=dhus.map(d=>
-    d===0                          ? 'rgba(90,122,154,.3)' :
-    d<=CFG.TARGET.SEW_DHU          ? 'rgba(0,230,118,.8)' :
-    d<=CFG.TARGET.SEW_DHU*1.5      ? 'rgba(255,149,0,.8)' :
-                                     'rgba(255,68,68,.8)');
-  kill('cUnit');
-  charts.unit=new Chart(document.getElementById('cUnit'),{
-    type:'bar',
-    data:{labels:units.map(u=>`Unit ${u}`), datasets:[{label:'DHU%',data:dhus,backgroundColor:colors,borderRadius:6}]},
-    options:{...oBar('DHU%',false),plugins:{legend:{display:false},tooltip:{...tOpt(),callbacks:{label:ctx=>ctx.raw===0?'No data':`DHU: ${ctx.raw}%`}}}},
-  });
+// ══════════════════════════════════════════════════════════════════
+// RENDER ALL
+// ══════════════════════════════════════════════════════════════════
+function renderAll(){
+  renderKPIs();
+  renderHourlyCards();
+  renderDHUTrend();
+  renderGap();
+  renderLineCards();
+  renderPareto();
+  renderBalance();
+  renderUnitDHU();
+  renderAO();
+  renderStyle();
+  renderDefectCat();
+  renderRanking(rankMode);
+  renderFinishing();
+  renderAlerts();
+  renderRemarks();
 }
 
-// ══════════════════════════════════════════════════════════
-// CHART: AO Compare (from Sum_AO)
-// ══════════════════════════════════════════════════════════
-function renderAO(){
-  const rows=filtAO(filtUnit(D.ao)).slice(0,10);
-  kill('cAO');
-  const canvas=document.getElementById('cAO');
-  if(!rows.length){ canvas.parentElement.innerHTML=ndHTML(); return; }
+// ══════════════════════════════════════════════════════════════════
+// KPIs
+// ══════════════════════════════════════════════════════════════════
+function renderKPIs(){
+  const totChk  =sumF(FILT,'Quality_Checked');
+  const totDef  =sumF(FILT,'Defectives_gmts');
+  const totProdT=sumF(FILT,'Prod_Target_Hr');
+  const totProdA=sumF(FILT,'Prod_Actual');
+  const maxBal  =Math.max(0,...FILT.map(r=>n(r.Table_Balance_Prev)));
+  const flags   =FILT.filter(r=>n(r.Quality_Checked)>n(r.Prod_Actual)&&n(r.Prod_Actual)>0).length;
+  const dhu     =totChk >0?totDef /totChk *100:0;
+  const eff     =totProdT>0?totProdA/totProdT*100:0;
 
-  charts.ao=new Chart(canvas,{
-    type:'bar',
-    data:{labels:rows.map(r=>r.AO_Number||'?'), datasets:[
-      {label:'Sewing DHU%',   data:rows.map(r=>n(r.Sewing_DHU_Pct)),   backgroundColor:'rgba(0,212,255,.75)', borderRadius:4},
-      {label:'Finishing DHU%',data:rows.map(r=>n(r.Finishing_DHU_Pct)),backgroundColor:'rgba(255,68,68,.75)',  borderRadius:4},
-    ]},
-    options: oBar('DHU %', true),
-  });
+  // Finishing DHU
+  let finRows=FIN;
+  if(fAO)  finRows=finRows.filter(r=>String(r.AO_Number||'')===fAO);
+  if(fUnit)finRows=finRows.filter(r=>String(r.Unit_No||'')===fUnit);
+  const finInsp=sumF(finRows,'Inspected_Qty');
+  const finDef =sumF(finRows,'Defectives_gmts');
+  const finDHU =finInsp>0?finDef/finInsp*100:0;
+
+  setText('kDHU',    dhu.toFixed(1)+'%');
+  setText('kFinDHU', finDHU.toFixed(1)+'%');
+  setText('kEff',    eff.toFixed(1)+'%');
+  setText('kDef',    Math.round(totDef).toLocaleString());
+  setText('kBal',    maxBal.toLocaleString());
+  setText('kFlag',   flags);
+  setText('kChecked',Math.round(totChk).toLocaleString());
+  setText('kRows',   FILT.length.toLocaleString());
+
+  const te=document.getElementById('kDHUt');
+  if(dhu===0) te.innerHTML='<span style="color:var(--t3);font-family:var(--mono);font-size:9px">No data</span>';
+  else if(dhu<=CFG.T.SEW_DHU) te.innerHTML='<span style="color:var(--green);font-family:var(--mono);font-size:9px">✓ ON TARGET</span>';
+  else te.innerHTML=`<span style="color:var(--red);font-family:var(--mono);font-size:9px">↑ +${(dhu-CFG.T.SEW_DHU).toFixed(1)}%</span>`;
 }
 
-// ══════════════════════════════════════════════════════════
-// HEATMAP: Line DHU (from Sum_Line)
-// ══════════════════════════════════════════════════════════
-function renderHeatmap(){
-  const wrap=document.getElementById('hmWrap');
-  const rows=filtUnit(filtLine(D.line));
-  if(!rows.length){ wrap.innerHTML=`<div class="nd"><div class="nd-ico">📊</div>No data for filter</div>`; return; }
+// ══════════════════════════════════════════════════════════════════
+// HOURLY CARDS
+// ══════════════════════════════════════════════════════════════════
+function renderHourlyCards(){
+  const slots=['08:00-08:35','08:36-09:00','09:00-10:00','10:00-11:00','11:00-12:00','13:00-14:00','14:00-15:00','15:00-16:00','16:00-17:00'];
+  const wrap=document.getElementById('hourlyCards');
+  const now=new Date();
+  const nowH=now.getHours();
 
-  // Group by unit for display
-  const byUnit={};
-  rows.forEach(r=>{
-    const u=String(r.Unit_No||''); const l=String(r.Line_No||'');
-    if(!u||!l) return;
-    if(!byUnit[u]) byUnit[u]=[];
-    byUnit[u].push(r);
-  });
-
-  let h=`<div style="padding:8px;overflow-x:auto">`;
-  Object.entries(byUnit).sort().forEach(([unit, lines])=>{
-    h+=`<div style="margin-bottom:10px">`;
-    h+=`<div style="font-family:var(--mono);font-size:9px;color:var(--accent);margin-bottom:4px;letter-spacing:.08em">UNIT ${unit}</div>`;
-    h+=`<div style="display:flex;flex-wrap:wrap;gap:4px">`;
-    lines.forEach(r=>{
-      const dhu=n(r.Sewing_DHU_Pct);
-      const bg = dhu===0?'var(--border)':dhu<=2.5?'rgba(0,230,118,.7)':dhu<=5?'rgba(255,149,0,.75)':'rgba(255,68,68,.8)';
-      const fc = dhu===0?'var(--muted2)':'#fff';
-      const lbl= String(r.Line_No||'').replace('L','');
-      h+=`<div class="hm-cell" style="width:52px;background:${bg};color:${fc};border-radius:5px;font-size:9px;flex-direction:column;gap:1px" title="Unit ${unit} | ${r.Line_No} | DHU: ${dhu}% | ${r.Status||''}">
-        <span style="font-size:8px;opacity:.7">L${lbl}</span>
-        <span>${dhu===0?'—':dhu+'%'}</span>
-      </div>`;
-    });
-    h+=`</div></div>`;
-  });
-
-  h+=`<div style="display:flex;gap:12px;margin-top:8px;flex-wrap:wrap">
-    <div style="display:flex;align-items:center;gap:4px"><div style="width:10px;height:10px;border-radius:2px;background:rgba(0,230,118,.7)"></div><span style="font-family:var(--mono);font-size:9px;color:var(--muted)">≤2.5% Good</span></div>
-    <div style="display:flex;align-items:center;gap:4px"><div style="width:10px;height:10px;border-radius:2px;background:rgba(255,149,0,.75)"></div><span style="font-family:var(--mono);font-size:9px;color:var(--muted)">2.5–5% Warn</span></div>
-    <div style="display:flex;align-items:center;gap:4px"><div style="width:10px;height:10px;border-radius:2px;background:rgba(255,68,68,.8)"></div><span style="font-family:var(--mono);font-size:9px;color:var(--muted)">&gt;5% Critical</span></div>
-    <div style="display:flex;align-items:center;gap:4px"><div style="width:10px;height:10px;border-radius:2px;background:var(--border)"></div><span style="font-family:var(--mono);font-size:9px;color:var(--muted)">No data</span></div>
-  </div></div>`;
-  wrap.innerHTML=h;
-}
-
-// ══════════════════════════════════════════════════════════
-// CHART: Daily DHU Trend (from Sum_Daily)
-// ══════════════════════════════════════════════════════════
-function renderDailyTrend(){
-  const rows=filtDate(D.daily).slice(-30).reverse();
-  kill('cDaily');
-  const canvas=document.getElementById('cDaily');
-  if(!rows.length){ canvas.parentElement.innerHTML=ndHTML(); return; }
-
-  const lbls=rows.map(r=>String(r.Date||'').substring(5)); // MM-DD
-  charts.daily=new Chart(canvas,{
-    type:'line',
-    data:{labels:lbls, datasets:[
-      {label:'Sewing DHU%',   data:rows.map(r=>n(r.Sewing_DHU_Pct)),   borderColor:'#00D4FF', backgroundColor:'rgba(0,212,255,.08)', borderWidth:2, pointRadius:3, fill:true, tension:.4},
-      {label:'Finishing DHU%',data:rows.map(r=>n(r.Finishing_DHU_Pct)),borderColor:'#FF4444', backgroundColor:'transparent', borderWidth:2, pointRadius:3, fill:false, tension:.4},
-      {label:'Target',        data:rows.map(()=>CFG.TARGET.SEW_DHU),  borderColor:'rgba(255,214,0,.4)', borderDash:[5,4], borderWidth:1.5, pointRadius:0, fill:false},
-    ]},
-    options: oLine('DHU %', true),
-  });
-}
-
-// ══════════════════════════════════════════════════════════
-// CHART: Daily Efficiency (from Sum_Daily)
-// ══════════════════════════════════════════════════════════
-function renderDailyEff(){
-  const rows=filtDate(D.daily).slice(-30).reverse();
-  kill('cDailyEff');
-  const canvas=document.getElementById('cDailyEff');
-  if(!rows.length){ canvas.parentElement.innerHTML=ndHTML(); return; }
-
-  const lbls=rows.map(r=>String(r.Date||'').substring(5));
-  const effs=rows.map(r=>n(r.Prod_Eff_Pct));
-  const colors=effs.map(e=>e===0?'rgba(90,122,154,.3)':e>=85?'rgba(0,230,118,.75)':e>=70?'rgba(255,149,0,.75)':'rgba(255,68,68,.75)');
-
-  charts.dailyEff=new Chart(canvas,{
-    type:'bar',
-    data:{labels:lbls, datasets:[
-      {label:'Prod Eff%', data:effs, backgroundColor:colors, borderRadius:4},
-      {label:'Target (85%)', data:rows.map(()=>85), type:'line', borderColor:'rgba(255,214,0,.5)', borderDash:[5,4], borderWidth:1.5, pointRadius:0, fill:false},
-    ]},
-    options: oBar('Eff %', false),
-  });
-}
-
-// ══════════════════════════════════════════════════════════
-// PERFORMANCE TABLE (from Sum_Staff)
-// ══════════════════════════════════════════════════════════
-function renderPerf(rf){
-  if(rf!==undefined) roleF=rf;
-
-  const rows=filtStaff(D.staff)
-    .filter(r=>roleF==='all'||String(r.Role||'')===roleF)
-    .sort((a,b)=>n(b.Overall_Score_Pct)-n(a.Overall_Score_Pct));
-
-  document.getElementById('pCnt').textContent=rows.length+' STAFF';
-  const tb=document.getElementById('pBody');
-  if(!rows.length){
-    tb.innerHTML=`<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--muted);font-family:var(--mono);font-size:11px">No data for current filter</td></tr>`;
-    return;
-  }
-
-  tb.innerHTML=rows.map((r,i)=>{
-    const score=n(r.Overall_Score_Pct);
-    const pct=Math.min(100,score).toFixed(1);
-    const col=score>=90?'#00E676':score>=75?'#FFD600':score>=60?'#FF9500':'#FF4444';
-    const [gl,gc]=score>=90?['Excellent','gex']:score>=75?['Good','ggd']:score>=60?['Average','gav']:['Poor','gpr'];
-    const rk=i===0?'r1':i===1?'r2':i===2?'r3':'rn';
-    const role=String(r.Role||'');
-    const metric=role==='QI'?`Checked: ${n(r.Total_QC_Checked).toLocaleString()} | DHU: ${n(r.Sewing_DHU_Pct).toFixed(1)}%`:
-                 role==='Line Quality'?`Line DHU: ${n(r.LQ_Line_DHU_Pct).toFixed(1)}%`:
-                 `DHU: ${n(r.Sewing_DHU_Pct).toFixed(1)}%`;
-    return `<tr>
-      <td><span class="rnk ${rk}">${i+1}</span></td>
-      <td style="font-family:var(--mono);font-size:10px;color:var(--accent)">${r.Staff_ID||'—'}</td>
-      <td style="font-weight:500">${r.Staff_Name||'—'}</td>
-      <td style="font-family:var(--mono);font-size:10px;color:var(--muted)">${role}</td>
-      <td style="font-family:var(--mono);font-size:10px">Unit ${r.Unit_No||'—'}</td>
-      <td style="font-family:var(--mono);font-size:10px">${r.Line_No||'—'}</td>
-      <td><div class="pb-w"><div class="pb-bg"><div class="pb-f" style="width:${pct}%;background:${col}"></div></div><span style="font-family:var(--mono);font-size:10px;color:${col};min-width:36px">${pct}%</span></div></td>
-      <td><span class="gbdg ${gc}">${gl}</span></td>
-      <td style="font-family:var(--mono);font-size:10px;color:var(--muted)">${metric}</td>
-    </tr>`;
-  }).join('');
-}
-
-function rTab(role,el){
-  document.querySelectorAll('.rtab').forEach(t=>t.classList.remove('on'));
-  el.classList.add('on');
-  renderPerf(role);
-}
-
-// ══════════════════════════════════════════════════════════
-// CONTROLLER + FLOOR IC CHARTS (from Sum_Staff)
-// ══════════════════════════════════════════════════════════
-function renderCtrlFIC(){
-  const ctrls=filtUnit(D.staff).filter(r=>r.Role==='Controller');
-  const fics =filtUnit(D.staff).filter(r=>r.Role==='Floor IC');
-
-  // Controller
-  kill('cCtrl');
-  const ctrlC=document.getElementById('cCtrl');
-  if(!ctrls.length){ ctrlC.parentElement.innerHTML=ndHTML(); }
-  else {
-    const dhus=ctrls.map(r=>n(r.Sewing_DHU_Pct));
-    const cols=dhus.map(d=>d<=CFG.TARGET.SEW_DHU?'rgba(0,230,118,.8)':d<=CFG.TARGET.SEW_DHU*1.5?'rgba(255,149,0,.8)':'rgba(255,68,68,.8)');
-    charts.ctrl=new Chart(ctrlC,{
-      type:'bar',
-      data:{labels:ctrls.map(r=>r.Staff_Name||r.Staff_ID||'?'), datasets:[{label:'DHU%',data:dhus,backgroundColor:cols,borderRadius:6}]},
-      options:{...oBar('DHU%',false),plugins:{legend:{display:false},tooltip:tOpt()}},
-    });
-  }
-
-  // Floor IC
-  kill('cFIC');
-  const ficC=document.getElementById('cFIC');
-  if(!fics.length){ ficC.parentElement.innerHTML=ndHTML(); }
-  else {
-    const dhus=fics.map(r=>n(r.Sewing_DHU_Pct));
-    const cols=dhus.map(d=>d<=CFG.TARGET.SEW_DHU?'rgba(0,230,118,.8)':d<=CFG.TARGET.SEW_DHU*1.5?'rgba(255,149,0,.8)':'rgba(255,68,68,.8)');
-    charts.fic=new Chart(ficC,{
-      type:'bar',
-      data:{labels:fics.map(r=>r.Staff_Name||r.Staff_ID||'?'), datasets:[{label:'DHU%',data:dhus,backgroundColor:cols,borderRadius:6}]},
-      options:{...oBar('DHU%',false),plugins:{legend:{display:false},tooltip:tOpt()}},
-    });
-  }
-}
-
-// ══════════════════════════════════════════════════════════
-// ALERTS (from Sum_Alert)
-// ══════════════════════════════════════════════════════════
-function renderAlerts(){
-  let rows=D.alert;
-  if(fUnit) rows=rows.filter(r=>String(r.Unit||'')===fUnit);
-  if(fLine) rows=rows.filter(r=>String(r.Line||'')===fLine);
-  if(fDate) rows=rows.filter(r=>String(r.Date||'').substring(0,10)===fDate);
-
-  const c=document.getElementById('r7');
-  if(!rows.length){
-    c.innerHTML=`<div class="alrt ok">✓ No alerts for current filter — all data within acceptable range.</div>`;
-    return;
-  }
-  c.innerHTML=rows.slice(0,15).map(r=>{
-    const sev=String(r.Severity||'').toUpperCase();
-    const cls=sev==='WARN'?'warn':'high';
-    const ico=r.Type==='False Report'?'🚨':r.Type==='High Balance'?'⚠️':'📉';
-    return `<div class="alrt ${cls}">
-      <div class="alrt-ico">${ico}</div>
-      <div class="alrt-txt">
-        <strong>${r.Type} — Unit ${r.Unit||'?'} Line ${r.Line||'?'}</strong>
-        <span>${r.Detail||''} | ${r.Hour||''} | ${r.Date||''} | ${r.Staff||''}</span>
-      </div>
+  wrap.innerHTML=slots.map(slot=>{
+    const rows=FILT.filter(r=>String(r.Hour_Slot||'').trim()===slot);
+    const chk=sumA(rows,'Quality_Checked');
+    const def=sumA(rows,'Defectives_gmts');
+    const prodA=sumA(rows,'Prod_Actual');
+    const dhu=chk>0?+(def/chk*100).toFixed(1):null;
+    const slotH=parseInt(slot.split(':')[0])||0;
+    const isActive=slotH===nowH;
+    const dhuCol=dhu===null?'var(--t4)':dhu<=CFG.T.SEW_DHU?'var(--green)':dhu<=5?'var(--amber)':'var(--red)';
+    const barBg=dhu===null?'var(--b2)':dhu<=CFG.T.SEW_DHU?'var(--green)':dhu<=5?'var(--amber)':'var(--red)';
+    const barW=dhu===null?0:Math.min(100,(dhu/10)*100);
+    return `<div class="hc${isActive?' active':''}">
+      <div class="hc-slot">${slot.split('-')[0]}</div>
+      <div class="hc-dhu" style="color:${dhuCol}">${dhu===null?'—':dhu+'%'}</div>
+      <div class="hc-sub">${rows.length?`${Math.round(chk)} chk / ${Math.round(prodA)} prod`:'No data'}</div>
+      <div class="hc-bar"><div class="hc-bar-fill" style="width:${barW}%;background:${barBg}"></div></div>
     </div>`;
   }).join('');
 }
 
-// ══════════════════════════════════════════════════════════
-// PDF EXPORT — A4 Landscape
-// ══════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
+// DHU TREND LINE CHART
+// ══════════════════════════════════════════════════════════════════
+function renderDHUTrend(){
+  const slots=['08:00-08:35','08:36-09:00','09:00-10:00','10:00-11:00','11:00-12:00','13:00-14:00','14:00-15:00','15:00-16:00','16:00-17:00'];
+  const lbls=slots.map(s=>s.split('-')[0]);
+  const dhus=slots.map(s=>{
+    const rows=FILT.filter(r=>String(r.Hour_Slot||'').trim()===s);
+    const c=sumA(rows,'Quality_Checked'),d=sumA(rows,'Defectives_gmts');
+    return c>0?+(d/c*100).toFixed(2):null;
+  });
+  const hasData=dhus.some(v=>v!==null);
+  kill('cDHU');
+  const el=document.getElementById('cDHU');
+  if(!hasData){el.parentElement.innerHTML=ndHTML();return;}
+  charts.dhu=new Chart(el,{
+    type:'line',
+    data:{labels:lbls,datasets:[
+      {label:'DHU%',data:dhus,borderColor:'#00E5FF',backgroundColor:'rgba(0,229,255,.08)',borderWidth:2,pointRadius:4,pointBackgroundColor:'#00E5FF',fill:true,tension:.4,spanGaps:true},
+      {label:'Target',data:slots.map(()=>CFG.T.SEW_DHU),borderColor:'rgba(255,61,61,.5)',borderDash:[5,4],borderWidth:1.5,pointRadius:0,fill:false},
+    ]},
+    options:oLine('DHU %',true),
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════
+// PRODUCTION vs QC GAP
+// ══════════════════════════════════════════════════════════════════
+function renderGap(){
+  const slots=['08:00-08:35','08:36-09:00','09:00-10:00','10:00-11:00','11:00-12:00','13:00-14:00','14:00-15:00','15:00-16:00','16:00-17:00'];
+  const lbls=slots.map(s=>s.split('-')[0]);
+  const prod=slots.map(s=>sumA(FILT.filter(r=>String(r.Hour_Slot||'').trim()===s),'Prod_Actual'));
+  const qc  =slots.map(s=>sumA(FILT.filter(r=>String(r.Hour_Slot||'').trim()===s),'Quality_Checked'));
+  const hasData=prod.some(v=>v>0)||qc.some(v=>v>0);
+  kill('cGap');
+  const el=document.getElementById('cGap');
+  if(!hasData){el.parentElement.innerHTML=ndHTML();return;}
+  charts.gap=new Chart(el,{
+    type:'bar',
+    data:{labels:lbls,datasets:[
+      {label:'Production',data:prod,backgroundColor:'rgba(0,214,143,.65)',borderRadius:3},
+      {label:'QC Checked',data:qc,backgroundColor:'rgba(0,229,255,.65)',borderRadius:3},
+    ]},
+    options:oBar('Pieces',true),
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════
+// LINE STATUS CARDS
+// ══════════════════════════════════════════════════════════════════
+function renderLineCards(){
+  // Build line DHU from filtered data
+  const lineMap={};
+  FILT.forEach(r=>{
+    const u=r.Unit_No||'', l=r.Line_No||'';
+    if(!l) return;
+    const k=`${u}_${l}`;
+    if(!lineMap[k]) lineMap[k]={unit:u,line:l,chk:0,def:0,bal:0};
+    lineMap[k].chk+=n(r.Quality_Checked);
+    lineMap[k].def+=n(r.Defectives_gmts);
+    lineMap[k].bal=Math.max(lineMap[k].bal,n(r.Table_Balance_Prev));
+  });
+
+  // Get LQ name from LMAP
+  const getLQ=(unit,line)=>{
+    const row=LMAP.find(r=>String(r.Unit_No||'')===String(unit)&&r.Line_No===line);
+    return row?row.LQ_Name||'—':'—';
+  };
+
+  const cards=Object.values(lineMap).sort((a,b)=>{
+    const da=a.chk>0?a.def/a.chk:0;
+    const db=b.chk>0?b.def/b.chk:0;
+    return db-da;
+  });
+
+  const wrap=document.getElementById('lineCards');
+  if(!cards.length){wrap.innerHTML='<div style="padding:20px;font-family:var(--mono);font-size:11px;color:var(--t3);text-align:center">No data</div>';return;}
+
+  wrap.innerHTML=cards.map(c=>{
+    const dhu=c.chk>0?+(c.def/c.chk*100).toFixed(1):null;
+    const cls=dhu===null?'lc-empty':dhu<=CFG.T.SEW_DHU?'lc-good':dhu<=5?'lc-warn':'lc-bad';
+    const dcls=dhu===null?'empty':dhu<=CFG.T.SEW_DHU?'good':dhu<=5?'warn':'bad';
+    const lqName=getLQ(c.unit,c.line);
+    return `<div class="line-card ${cls}" title="Unit ${c.unit} | ${c.line} | LQ: ${lqName}">
+      <div class="lc-num">U${c.unit} ${c.line}</div>
+      <div class="lc-dhu ${dcls}">${dhu===null?'—':dhu+'%'}</div>
+      <div class="lc-name">${lqName}</div>
+      <div class="lc-bal">⊡ ${c.bal} pcs</div>
+    </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════════════════════════
+// PARETO CHART — with defect parsing
+// ══════════════════════════════════════════════════════════════════
+function renderPareto(){
+  const defMap={};
+  FILT.forEach(r=>{
+    const parsed=parseDefects(r['Defect_Tyep_&_Qty']||r['Defect_Type_&_Qty']||'');
+    Object.entries(parsed).forEach(([k,v])=>{
+      const clean=k.trim();
+      if(clean) defMap[clean]=(defMap[clean]||0)+v;
+    });
+    // Also count from Defectives_gmts if no defect types
+    const defQ=n(r.Defectives_gmts);
+    if(defQ>0&&Object.keys(parsed).length===0){
+      defMap['Unspecified']=(defMap['Unspecified']||0)+defQ;
+    }
+  });
+
+  const sorted=Object.entries(defMap).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  kill('cPareto');
+  const el=document.getElementById('cPareto');
+  if(!sorted.length){el.parentElement.innerHTML=ndHTML();return;}
+
+  const vals=sorted.map(([,v])=>v);
+  const tot=vals.reduce((a,b)=>a+b,0);
+  let cum=0;
+  const cpct=vals.map(v=>{cum+=v;return tot>0?+(cum/tot*100).toFixed(1):0;});
+
+  charts.pareto=new Chart(el,{
+    type:'bar',
+    data:{labels:sorted.map(([k])=>k),datasets:[
+      {label:'Qty',data:vals,backgroundColor:'rgba(255,176,32,.75)',borderRadius:3,yAxisID:'y'},
+      {label:'Cumulative%',data:cpct,type:'line',borderColor:'#FF3D3D',borderWidth:2,pointRadius:3,pointBackgroundColor:'#FF3D3D',fill:false,yAxisID:'y2',tension:.3},
+    ]},
+    options:{responsive:true,maintainAspectRatio:true,
+      plugins:{legend:{display:true,labels:{color:'#4A6282',font:{family:'IBM Plex Mono',size:9},boxWidth:9}},tooltip:tOpt()},
+      scales:{x:sX(),y:{...sY('Qty'),position:'left'},y2:{...sY('%'),position:'right',min:0,max:100,grid:{display:false}}}},
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════
+// TABLE BALANCE CHART
+// ══════════════════════════════════════════════════════════════════
+function renderBalance(){
+  const lineMap={};
+  FILT.forEach(r=>{
+    const l=r.Line_No||'';
+    if(!l) return;
+    lineMap[l]=Math.max(lineMap[l]||0,n(r.Table_Balance_Prev));
+  });
+  const sorted=Object.entries(lineMap).sort((a,b)=>b[1]-a[1]).slice(0,18);
+  kill('cBalance');
+  const el=document.getElementById('cBalance');
+  if(!sorted.length){el.parentElement.innerHTML=ndHTML();return;}
+  const colors=sorted.map(([,v])=>v===0?'rgba(0,214,143,.5)':v<=20?'rgba(0,229,255,.65)':v<=50?'rgba(255,176,32,.75)':'rgba(255,61,61,.8)');
+  charts.balance=new Chart(el,{
+    type:'bar',
+    data:{labels:sorted.map(([k])=>k),datasets:[{label:'Pending pcs',data:sorted.map(([,v])=>v),backgroundColor:colors,borderRadius:3}]},
+    options:{...oBar('pcs',false),indexAxis:'y',plugins:{legend:{display:false},tooltip:tOpt()}},
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════
+// UNIT DHU CHART
+// ══════════════════════════════════════════════════════════════════
+function renderUnitDHU(){
+  const unitAgg={};
+  RAW.forEach(r=>{
+    const u=String(r.Unit_No||'').trim();
+    if(!u) return;
+    if(!unitAgg[u]){unitAgg[u]={chk:0,def:0};}
+    unitAgg[u].chk+=n(r.Quality_Checked);
+    unitAgg[u].def+=n(r.Defectives_gmts);
+  });
+  const units=[1,2,3,4,5,6,7];
+  const dhus=units.map(u=>{
+    const a=unitAgg[String(u)];
+    return a&&a.chk>0?+(a.def/a.chk*100).toFixed(2):0;
+  });
+  const colors=dhus.map(d=>d===0?'rgba(42,66,98,.5)':d<=CFG.T.SEW_DHU?'rgba(0,214,143,.8)':d<=5?'rgba(255,176,32,.8)':'rgba(255,61,61,.8)');
+  kill('cUnit');
+  charts.unit=new Chart(document.getElementById('cUnit'),{
+    type:'bar',
+    data:{labels:units.map(u=>`Unit ${u}`),datasets:[{label:'DHU%',data:dhus,backgroundColor:colors,borderRadius:4}]},
+    options:{...oBar('DHU%',false),plugins:{legend:{display:false},tooltip:{...tOpt(),callbacks:{label:ctx=>ctx.raw===0?'No data':`DHU: ${ctx.raw}%`}}}},
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════
+// AO DHU COMPARISON
+// ══════════════════════════════════════════════════════════════════
+function renderAO(){
+  const sewMap={};
+  FILT.forEach(r=>{
+    const ao=r.AO_Number||'';
+    if(!ao) return;
+    if(!sewMap[ao]){sewMap[ao]={chk:0,def:0};}
+    sewMap[ao].chk+=n(r.Quality_Checked);
+    sewMap[ao].def+=n(r.Defectives_gmts);
+  });
+  const finMap={};
+  FIN.forEach(r=>{
+    const ao=r.AO_Number||'';
+    if(!ao) return;
+    if(!finMap[ao]){finMap[ao]={insp:0,def:0};}
+    finMap[ao].insp+=n(r.Inspected_Qty);
+    finMap[ao].def +=n(r.Defectives_gmts);
+  });
+  const aos=[...new Set([...Object.keys(sewMap),...Object.keys(finMap)])].sort().slice(0,10);
+  kill('cAO');
+  const el=document.getElementById('cAO');
+  if(!aos.length){el.parentElement.innerHTML=ndHTML();return;}
+  charts.ao=new Chart(el,{
+    type:'bar',
+    data:{labels:aos,datasets:[
+      {label:'Sewing DHU%',  data:aos.map(ao=>{const a=sewMap[ao];return a&&a.chk>0?+(a.def/a.chk*100).toFixed(2):0;}),backgroundColor:'rgba(0,229,255,.7)',borderRadius:3},
+      {label:'Finishing DHU%',data:aos.map(ao=>{const a=finMap[ao];return a&&a.insp>0?+(a.def/a.insp*100).toFixed(2):0;}),backgroundColor:'rgba(255,61,61,.7)',borderRadius:3},
+    ]},
+    options:oBar('DHU%',true),
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════
+// STYLE-WISE DHU
+// ══════════════════════════════════════════════════════════════════
+function renderStyle(){
+  const sMap={};
+  FILT.forEach(r=>{
+    const s=r.Style_No||'';
+    if(!s) return;
+    if(!sMap[s]){sMap[s]={chk:0,def:0};}
+    sMap[s].chk+=n(r.Quality_Checked);
+    sMap[s].def+=n(r.Defectives_gmts);
+  });
+  const sorted=Object.entries(sMap).sort((a,b)=>{
+    const da=a[1].chk>0?a[1].def/a[1].chk:0;
+    const db=b[1].chk>0?b[1].def/b[1].chk:0;
+    return db-da;
+  }).slice(0,10);
+  kill('cStyle');
+  const el=document.getElementById('cStyle');
+  if(!sorted.length){el.parentElement.innerHTML=ndHTML();return;}
+  const dhus=sorted.map(([,v])=>v.chk>0?+(v.def/v.chk*100).toFixed(2):0);
+  const colors=dhus.map(d=>d<=CFG.T.SEW_DHU?'rgba(0,214,143,.75)':d<=5?'rgba(255,176,32,.75)':'rgba(255,61,61,.75)');
+  charts.style=new Chart(el,{
+    type:'bar',
+    data:{labels:sorted.map(([k])=>k),datasets:[{label:'DHU%',data:dhus,backgroundColor:colors,borderRadius:3}]},
+    options:{...oBar('DHU%',false),plugins:{legend:{display:false},tooltip:tOpt()}},
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════
+// DEFECT CATEGORY DONUT
+// ══════════════════════════════════════════════════════════════════
+function renderDefectCat(){
+  // Build category lookup from Defect_Master
+  const catMap={};
+  DEFMASTER.forEach(r=>{if(r.Defect_Name) catMap[r.Defect_Name]=(r.Category||'Minor');});
+
+  const cats={Major:0,Critical:0,Minor:0};
+  FILT.forEach(r=>{
+    const parsed=parseDefects(r['Defect_Tyep_&_Qty']||r['Defect_Type_&_Qty']||'');
+    Object.entries(parsed).forEach(([name,qty])=>{
+      const cat=catMap[name.trim()]||'Minor';
+      cats[cat]=(cats[cat]||0)+qty;
+    });
+  });
+  const tot=Object.values(cats).reduce((a,b)=>a+b,0);
+  kill('cDefCat');
+  const el=document.getElementById('cDefCat');
+  if(tot===0){el.parentElement.innerHTML=ndHTML();return;}
+  charts.defcat=new Chart(el,{
+    type:'doughnut',
+    data:{
+      labels:Object.keys(cats),
+      datasets:[{data:Object.values(cats),backgroundColor:['rgba(255,176,32,.8)','rgba(255,61,61,.8)','rgba(0,214,143,.8)'],borderColor:'var(--bg2)',borderWidth:2,hoverOffset:6}],
+    },
+    options:{responsive:true,maintainAspectRatio:true,cutout:'68%',
+      plugins:{legend:{display:true,position:'bottom',labels:{color:'#4A6282',font:{family:'IBM Plex Mono',size:9},boxWidth:10,padding:10}},tooltip:tOpt()}},
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════
+// ACCOUNTABILITY RANKING
+// LQ: performance based on QI defect found on their line
+// Controller: aggregated DHU of their lines
+// Floor IC: aggregated DHU of their lines
+// QI: check rate + accuracy
+// ══════════════════════════════════════════════════════════════════
+function renderRanking(mode){
+  rankMode=mode;
+  let rows=[];
+
+  if(mode==='LQ'){
+    // Line Quality — per line DHU (LQ responsible)
+    const lineAgg={};
+    FILT.forEach(r=>{
+      const u=String(r.Unit_No||''), l=r.Line_No||'';
+      if(!l) return;
+      const k=`${u}_${l}`;
+      if(!lineAgg[k]){lineAgg[k]={unit:u,line:l,chk:0,def:0,lqName:'—'};}
+      lineAgg[k].chk+=n(r.Quality_Checked);
+      lineAgg[k].def+=n(r.Defectives_gmts);
+    });
+    // Get LQ names from Line_Mapping
+    LMAP.forEach(lm=>{
+      const k=`${lm.Unit_No}_${lm.Line_No}`;
+      if(lineAgg[k]) lineAgg[k].lqName=lm.LQ_Name||'—';
+    });
+    rows=Object.values(lineAgg).map(a=>{
+      const dhu=a.chk>0?+(a.def/a.chk*100).toFixed(2):0;
+      // Score: lower DHU = better. Score = max(0, 100 - dhu*15)
+      const score=Math.max(0,Math.min(100,100-dhu*15));
+      return {name:a.lqName,sub:`Unit ${a.unit} | ${a.line} | ${a.chk} checked`,score,dhu,detail:`DHU: ${dhu}%`};
+    }).sort((a,b)=>b.score-a.score);
+    document.getElementById('rankTitle').textContent='LINE QUALITY PERFORMANCE';
+    document.getElementById('rankCnt').textContent=`${rows.length} LQ STAFF`;
+
+  } else if(mode==='Controller'){
+    // Controller — aggregate all their lines
+    const ctrlAgg={};
+    LMAP.forEach(lm=>{
+      const cid=lm.Controller_ID, cname=lm.Controller_Name||'—';
+      const u=String(lm.Unit_No||''), l=lm.Line_No||'';
+      if(!cid||!l) return;
+      if(!ctrlAgg[cid]){ctrlAgg[cid]={name:cname,unit:u,lines:[],chk:0,def:0};}
+      ctrlAgg[cid].lines.push(l);
+      // Sum hourly data for this line
+      FILT.filter(r=>String(r.Unit_No||'')===u&&r.Line_No===l).forEach(r=>{
+        ctrlAgg[cid].chk+=n(r.Quality_Checked);
+        ctrlAgg[cid].def+=n(r.Defectives_gmts);
+      });
+    });
+    rows=Object.values(ctrlAgg).map(a=>{
+      const dhu=a.chk>0?+(a.def/a.chk*100).toFixed(2):0;
+      const score=Math.max(0,Math.min(100,100-dhu*12));
+      return {name:a.name,sub:`Unit ${a.unit} | ${[...new Set(a.lines)].length} lines | ${a.chk} checked`,score,dhu,detail:`DHU: ${dhu}%`};
+    }).sort((a,b)=>b.score-a.score);
+    document.getElementById('rankTitle').textContent='CONTROLLER PERFORMANCE';
+    document.getElementById('rankCnt').textContent=`${rows.length} CONTROLLERS`;
+
+  } else if(mode==='FloorIC'){
+    const ficAgg={};
+    LMAP.forEach(lm=>{
+      const fid=lm.Floor_IC_ID, fname=lm.Floor_IC_Name||'—';
+      const u=String(lm.Unit_No||''), l=lm.Line_No||'';
+      if(!fid||!l) return;
+      if(!ficAgg[fid]){ficAgg[fid]={name:fname,unit:u,lines:[],chk:0,def:0};}
+      ficAgg[fid].lines.push(l);
+      FILT.filter(r=>String(r.Unit_No||'')===u&&r.Line_No===l).forEach(r=>{
+        ficAgg[fid].chk+=n(r.Quality_Checked);
+        ficAgg[fid].def+=n(r.Defectives_gmts);
+      });
+    });
+    rows=Object.values(ficAgg).map(a=>{
+      const dhu=a.chk>0?+(a.def/a.chk*100).toFixed(2):0;
+      const score=Math.max(0,Math.min(100,100-dhu*12));
+      return {name:a.name,sub:`Unit ${a.unit} | ${[...new Set(a.lines)].length} lines | ${a.chk} checked`,score,dhu,detail:`DHU: ${dhu}%`};
+    }).sort((a,b)=>b.score-a.score);
+    document.getElementById('rankTitle').textContent='FLOOR IC PERFORMANCE';
+    document.getElementById('rankCnt').textContent=`${rows.length} FLOOR ICs`;
+
+  } else if(mode==='QI'){
+    const qiAgg={};
+    FILT.forEach(r=>{
+      const id=r.QI_ID||r.QI_Name||'', name=r.QI_Name||String(r.QI_ID||'?');
+      if(!id) return;
+      if(!qiAgg[id]){qiAgg[id]={name,unit:r.Unit_No||'',line:r.Line_No||'',chk:0,prodA:0,def:0};}
+      qiAgg[id].chk +=n(r.Quality_Checked);
+      qiAgg[id].prodA+=n(r.Prod_Actual);
+      qiAgg[id].def +=n(r.Defectives_gmts);
+    });
+    rows=Object.values(qiAgg).map(a=>{
+      const chkRate=a.prodA>0?+(a.chk/a.prodA*100).toFixed(1):0;
+      const dhu=a.chk>0?+(a.def/a.chk*100).toFixed(2):0;
+      // QI score: check rate (50%) + quality accuracy (50%)
+      const qualAcc=Math.max(0,100-dhu*10);
+      const score=+(chkRate*.5+qualAcc*.5).toFixed(1);
+      return {name:a.name,sub:`Unit ${a.unit} | ${a.line} | ${a.chk} checked`,score,dhu,detail:`Check Rate: ${chkRate}% | DHU: ${dhu}%`};
+    }).sort((a,b)=>b.score-a.score);
+    document.getElementById('rankTitle').textContent='QI PERFORMANCE';
+    document.getElementById('rankCnt').textContent=`${rows.length} QI STAFF`;
+  }
+
+  const wrap=document.getElementById('rankList');
+  if(!rows.length){
+    wrap.innerHTML='<div style="padding:24px;font-family:var(--mono);font-size:11px;color:var(--t3);text-align:center">No data for current filter</div>';
+    return;
+  }
+
+  wrap.innerHTML=rows.map((r,i)=>{
+    const rk=i===0?'rn1':i===1?'rn2':i===2?'rn3':'rnn';
+    const pct=Math.min(100,r.score).toFixed(1);
+    const col=r.score>=85?'var(--green)':r.score>=70?'var(--cyan)':r.score>=55?'var(--amber)':'var(--red)';
+    const [gl,gc]=r.score>=85?['Excellent','gex']:r.score>=70?['Good','ggd']:r.score>=55?['Average','gav']:['Poor','gpr'];
+    return `<div class="rank-row">
+      <span class="rank-num ${rk}">${i+1}</span>
+      <div class="rank-info">
+        <div class="rank-name">${r.name}</div>
+        <div class="rank-sub">${r.sub}</div>
+      </div>
+      <div style="font-family:var(--mono);font-size:9.5px;color:var(--t3);min-width:80px;text-align:right;padding-right:8px">${r.detail}</div>
+      <div class="rank-bar-wrap">
+        <div class="rank-bar-bg"><div class="rank-bar-fill" style="width:${pct}%;background:${col}"></div></div>
+        <span class="rank-pct" style="color:${col}">${pct}%</span>
+      </div>
+      <span class="grade-pill ${gc}">${gl}</span>
+    </div>`;
+  }).join('');
+}
+
+function rTab(mode,el){
+  document.querySelectorAll('.rtab').forEach(t=>t.classList.remove('on'));
+  el.classList.add('on');
+  renderRanking(mode);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// FINISHING ANALYSIS
+// ══════════════════════════════════════════════════════════════════
+function renderFinishing(){
+  // Finishing comparison chart
+  let finRows=FIN;
+  if(fAO)  finRows=finRows.filter(r=>String(r.AO_Number||'')===fAO);
+  if(fUnit)finRows=finRows.filter(r=>String(r.Unit_No||'')===fUnit);
+
+  const aoFinMap={};
+  finRows.forEach(r=>{
+    const ao=r.AO_Number||'';
+    if(!ao) return;
+    if(!aoFinMap[ao]){aoFinMap[ao]={insp:0,def:0,style:r.Style_No||'',color:r.Color||r.color||'',unit:r.Unit_No||''};}
+    aoFinMap[ao].insp+=n(r.Inspected_Qty);
+    aoFinMap[ao].def +=n(r.Defectives_gmts);
+  });
+
+  const aoSewMap={};
+  FILT.forEach(r=>{
+    const ao=r.AO_Number||'';
+    if(!ao) return;
+    if(!aoSewMap[ao]){aoSewMap[ao]={chk:0,def:0};}
+    aoSewMap[ao].chk+=n(r.Quality_Checked);
+    aoSewMap[ao].def+=n(r.Defectives_gmts);
+  });
+
+  const allAOs=[...new Set([...Object.keys(aoFinMap),...Object.keys(aoSewMap)])].sort().slice(0,10);
+
+  kill('cFinComp');
+  const el=document.getElementById('cFinComp');
+  if(!allAOs.length){el.parentElement.innerHTML=ndHTML();}
+  else {
+    charts.finComp=new Chart(el,{
+      type:'bar',
+      data:{labels:allAOs,datasets:[
+        {label:'Sewing DHU%',data:allAOs.map(ao=>{const a=aoSewMap[ao];return a&&a.chk>0?+(a.def/a.chk*100).toFixed(2):0;}),backgroundColor:'rgba(0,229,255,.7)',borderRadius:3},
+        {label:'Finishing DHU%',data:allAOs.map(ao=>{const a=aoFinMap[ao];return a&&a.insp>0?+(a.def/a.insp*100).toFixed(2):0;}),backgroundColor:'rgba(255,61,61,.7)',borderRadius:3},
+      ]},
+      options:oBar('DHU%',true),
+    });
+  }
+
+  // Finishing table
+  const tbody=document.getElementById('finBody');
+  if(!Object.keys(aoFinMap).length){
+    tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--t3);font-family:var(--mono);font-size:10px">No finishing data</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML=Object.entries(aoFinMap).sort((a,b)=>{
+    const da=a[1].insp>0?a[1].def/a[1].insp:0;
+    const db=b[1].insp>0?b[1].def/b[1].insp:0;
+    return db-da;
+  }).map(([ao,a])=>{
+    const dhu=a.insp>0?+(a.def/a.insp*100).toFixed(2):0;
+    const pass=dhu<=CFG.T.FIN_DHU;
+    return `<tr>
+      <td style="font-family:var(--mono);font-size:10px;color:var(--cyan)">${ao}</td>
+      <td style="font-size:11px">${a.style}</td>
+      <td style="font-size:11px">${a.color}</td>
+      <td style="font-family:var(--mono);font-size:10px">${Math.round(a.insp)}</td>
+      <td style="font-family:var(--mono);font-size:10px;color:var(--red)">${Math.round(a.def)}</td>
+      <td style="font-family:var(--mono);font-size:10px;font-weight:600;color:${pass?'var(--green)':'var(--red)'}">${dhu}%</td>
+      <td><span style="font-family:var(--mono);font-size:9px;padding:2px 6px;border-radius:3px;background:${pass?'var(--green-bg)':'var(--red-bg)'};color:${pass?'var(--green)':'var(--red)'};border:1px solid ${pass?'rgba(0,214,143,.3)':'rgba(255,61,61,.3)'}">${pass?'✓ Pass':'✗ Fail'}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════════════════════════
+// ALERTS
+// ══════════════════════════════════════════════════════════════════
+function renderAlerts(){
+  const alerts=[];
+  FILT.forEach(r=>{
+    const chk=n(r.Quality_Checked), prod=n(r.Prod_Actual), def=n(r.Defectives_gmts), bal=n(r.Table_Balance_Prev);
+    const nm=r.QI_Name||'—', ln=r.Line_No||'—', sl=r.Hour_Slot||'—', un=r.Unit_No||'—';
+    if(chk>prod&&prod>0) alerts.push({t:'danger',i:'🚨',h:`False Report — Unit ${un} ${ln}`,d:`${sl} | QI: ${nm} | Checked ${Math.round(chk)} > Produced ${Math.round(prod)}`});
+    if(bal>CFG.T.BAL_WARN) alerts.push({t:'warn',i:'⚠️',h:`High Table Balance — ${ln}`,d:`Unit ${un} | ${Math.round(bal)} pcs pending | ${sl}`});
+    if(chk>0&&def/chk*100>CFG.T.SEW_DHU*2.5) alerts.push({t:'danger',i:'📉',h:`DHU Spike — Unit ${un} ${ln}`,d:`${(def/chk*100).toFixed(1)}% DHU | ${sl} | QI: ${nm}`});
+  });
+
+  const seen=new Set();
+  const unique=alerts.filter(a=>{const k=a.h+a.d;if(seen.has(k))return false;seen.add(k);return true;}).slice(0,15);
+  document.getElementById('alertCnt').textContent=`${unique.length} ALERTS`;
+
+  const wrap=document.getElementById('alertList');
+  if(!unique.length){wrap.innerHTML='<div class="alrt ok">✓ No alerts for current filter</div>';return;}
+  wrap.innerHTML=unique.map(a=>`<div class="alrt ${a.t}"><div class="alrt-ico">${a.i}</div><div class="alrt-body"><strong>${a.h}</strong><span>${a.d}</span></div></div>`).join('');
+}
+
+// ══════════════════════════════════════════════════════════════════
+// REMARKS
+// ══════════════════════════════════════════════════════════════════
+function renderRemarks(){
+  const withRemarks=FILT.filter(r=>String(r.Remarks||'').trim()).slice(0,20);
+  const wrap=document.getElementById('remarksList');
+  if(!withRemarks.length){
+    wrap.innerHTML='<div style="padding:16px;font-family:var(--mono);font-size:10px;color:var(--t3);text-align:center">No remarks in current filter</div>';
+    return;
+  }
+  wrap.innerHTML=withRemarks.map(r=>`<div class="remark-item">
+    <div class="remark-meta">
+      <span class="remark-line">Unit ${r.Unit_No||'?'} ${r.Line_No||'?'}</span>
+      <span class="remark-hour">${r.Hour_Slot||'?'}</span>
+      <span class="remark-qi">QI: ${r.QI_Name||'?'}</span>
+    </div>
+    <div class="remark-txt">${String(r.Remarks||'').trim()}</div>
+  </div>`).join('');
+}
+
+// ══════════════════════════════════════════════════════════════════
+// PDF EXPORT
+// ══════════════════════════════════════════════════════════════════
 async function xpdf(secId){
   const el=document.getElementById(secId);
   if(!el) return;
   const btn=event?.target?.closest('.btn-pdf');
   if(btn){btn.textContent='⏳';btn.disabled=true;}
   try{
-    const canvas=await html2canvas(el,{backgroundColor:'#0F1E35',scale:2,useCORS:true,logging:false});
+    const canvas=await html2canvas(el,{backgroundColor:'#0D1420',scale:2,useCORS:true,logging:false});
     const {jsPDF}=window.jspdf;
     const pdf=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
     const W=pdf.internal.pageSize.getWidth(),H=pdf.internal.pageSize.getHeight();
     const ratio=canvas.width/canvas.height;
     let iw=W-16,ih=iw/ratio;
     if(ih>H-16){ih=H-16;iw=ih*ratio;}
-    pdf.setFillColor(15,30,53);pdf.rect(0,0,W,H,'F');
+    pdf.setFillColor(13,20,32);pdf.rect(0,0,W,H,'F');
     pdf.addImage(canvas.toDataURL('image/png'),'PNG',(W-iw)/2,8,iw,ih);
-    pdf.setFontSize(7);pdf.setTextColor(90,122,154);
+    pdf.setFontSize(7);pdf.setTextColor(74,98,130);
     const fl=[fUnit&&`Unit ${fUnit}`,fLine&&`Line ${fLine}`,fAO&&`AO ${fAO}`,fDate].filter(Boolean);
-    pdf.text(`DHU Dashboard · ${new Date().toLocaleString()}${fl.length?' · '+fl.join(' | '):''}`,W/2,H-4,{align:'center'});
-    pdf.save(`DHU_${secId}_${new Date().toISOString().slice(0,10)}.pdf`);
+    pdf.text(`AmanDHU · ${new Date().toLocaleString()}${fl.length?' · '+fl.join(' | '):''}`,W/2,H-4,{align:'center'});
+    pdf.save(`AmanDHU_${secId}_${new Date().toISOString().slice(0,10)}.pdf`);
   }catch(e){console.error(e);}
-  if(btn){btn.innerHTML=`<svg viewBox="0 0 20 20" fill="currentColor" style="width:11px;height:11px"><path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/><path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/></svg>PDF A4`;btn.disabled=false;}
+  if(btn){btn.innerHTML=`<svg viewBox="0 0 20 20" fill="currentColor" style="width:10px;height:10px"><path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/><path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.74 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/></svg>PDF`;btn.disabled=false;}
 }
 
-// ══════════════════════════════════════════════════════════
-// CHART HELPERS
-// ══════════════════════════════════════════════════════════
-function tOpt(){return{backgroundColor:'#0A1828',borderColor:'#1A2E4A',borderWidth:1,titleColor:'#E8F4FF',bodyColor:'#5A7A9A',padding:8,titleFont:{family:'JetBrains Mono',size:10},bodyFont:{family:'JetBrains Mono',size:10}};}
-function sX(){return{ticks:{color:'#3A5A7A',font:{family:'JetBrains Mono',size:9},maxRotation:45},grid:{color:'rgba(26,46,74,.35)'}}}
-function sY(l){return{ticks:{color:'#3A5A7A',font:{family:'JetBrains Mono',size:9}},grid:{color:'rgba(26,46,74,.35)'},title:{display:!!l,text:l,color:'#5A7A9A',font:{family:'JetBrains Mono',size:9}}}}
-function oLine(y,leg){return{responsive:true,maintainAspectRatio:true,plugins:{legend:{display:leg,labels:{color:'#5A7A9A',font:{family:'JetBrains Mono',size:10},boxWidth:10}},tooltip:tOpt()},scales:{x:sX(),y:sY(y)}};}
-function oBar(y,leg){return oLine(y,leg);}
-function kill(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
-function ndHTML(){return '<div class="nd"><div class="nd-ico">📊</div><span style="font-family:var(--mono);font-size:11px">No data</span></div>';}
+// ══════════════════════════════════════════════════════════════════
+// TV MODE
+// ══════════════════════════════════════════════════════════════════
+function toggleTV(){
+  document.body.classList.toggle('tv-mode');
+  const btn=document.querySelector('.btn-tv');
+  btn.textContent=document.body.classList.contains('tv-mode')?'⊟ EXIT TV':'⊞ TV MODE';
+}
 
-// ══════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
+// CHART HELPERS
+// ══════════════════════════════════════════════════════════════════
+function tOpt(){return{backgroundColor:'#0D1420',borderColor:'#1C2A3E',borderWidth:1,titleColor:'#E2EAF4',bodyColor:'#4A6282',padding:8,titleFont:{family:'IBM Plex Mono',size:10},bodyFont:{family:'IBM Plex Mono',size:10}};}
+function sX(){return{ticks:{color:'#2E4265',font:{family:'IBM Plex Mono',size:9},maxRotation:45},grid:{color:'rgba(28,42,62,.5)'},border:{color:'var(--b1)'}}}
+function sY(l){return{ticks:{color:'#2E4265',font:{family:'IBM Plex Mono',size:9}},grid:{color:'rgba(28,42,62,.5)'},border:{color:'var(--b1)'},title:{display:!!l,text:l,color:'#4A6282',font:{family:'IBM Plex Mono',size:9}}}}
+function oLine(y,leg){return{responsive:true,maintainAspectRatio:true,plugins:{legend:{display:leg,labels:{color:'#4A6282',font:{family:'IBM Plex Mono',size:9},boxWidth:9,padding:8}},tooltip:tOpt()},scales:{x:sX(),y:sY(y)}};}
+function oBar(y,leg){return oLine(y,leg);}
+function kill(id){if(charts[id]){try{charts[id].destroy();}catch(e){}delete charts[id];}}
+function ndHTML(){return '<div class="no-data"><div class="no-data-ico">📊</div><div class="no-data-txt">No data</div></div>';}
+
+// ══════════════════════════════════════════════════════════════════
 // UTILS
-// ══════════════════════════════════════════════════════════
-const n   = v => parseFloat(v)||0;
-const sumF= (arr,k) => arr.reduce((a,r)=>a+n(r[k]),0);
+// ══════════════════════════════════════════════════════════════════
+const n=v=>parseFloat(String(v).replace(/,/g,''))||0;
+const sumF=(arr,k)=>arr.reduce((a,r)=>a+n(r[k]),0);
+const sumA=sumF;
 const setText=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
 
-// ══════════════════════════════════════════════════════════
-// INIT
-// ══════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
+// AUTO REFRESH + CLOCK
+// ══════════════════════════════════════════════════════════════════
 setInterval(loadAll, CFG.REFRESH);
+setInterval(()=>{ const e=document.getElementById('tbTime'); if(e)e.textContent=new Date().toLocaleTimeString(); }, 1000);
 window.addEventListener('load', loadAll);
 </script>
 </body>
