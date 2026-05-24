@@ -438,16 +438,30 @@ body.tv-mode .cc{border-radius:6px}
 // ⚙️  CONFIG — তোমার Google Sheet ID এখানে বসাও
 // ══════════════════════════════════════════════════════════════════
 const CFG = {
-  SHEET_ID: "1ujcdhQFSlZzOp-5xDPMnrbX8F0ISjsYKoyyXrpzBGPw",
+  SHEET_ID: "YOUR_GOOGLE_SHEET_ID_HERE",
 
   // তোমার Google Sheet-এর Sheet নামগুলো হুবহু এই রকম থাকতে হবে
   SHEETS: {
-    HOURLY:     "Hourly_Quality_Data",
-    FINISHING:  "Finishing_DHU_Data",
-    LINE_MAP:   "Line_Mapping",
-    QUALITY:    "Quality_Info",
-    AO:         "AO_Style_Master",
-    DEFECT:     "Defect_Master",
+    HOURLY:      "Hourly_Quality_Data",
+    FINISHING:   "Finishing_DHU_Data",
+    LINE_MAP:    "Line_Mapping",
+    QUALITY:     "Quality_Info",
+    AO:          "AO_Style_Master",
+    DEFECT:      "Defect_Master",
+    DEFECT_LOG:  "Defect_Log",
+  },
+
+  // Row offsets — headers are NOT always row 1
+  // Hourly_Quality_Data: row 3 is header (rows 1-2 are title/group)
+  // All others: row 2 is header (row 1 is title)
+  ROW_OFFSET: {
+    HOURLY:     3,  // headers at row 3
+    FINISHING:  2,  // headers at row 2
+    LINE_MAP:   2,
+    QUALITY:    2,
+    AO:         2,
+    DEFECT:     2,
+    DEFECT_LOG: 2,
   },
 
   // Performance targets
@@ -460,7 +474,7 @@ const CFG = {
 // ══════════════════════════════════════════════════════════════════
 // STATE
 // ══════════════════════════════════════════════════════════════════
-let RAW=[], FIN=[], LMAP=[], QI=[], AO=[], DEFMASTER=[];
+let RAW=[], FIN=[], LMAP=[], QI=[], AO=[], DEFMASTER=[], DEFLOG=[];
 let FILT=[];
 let charts={}, rankMode='LQ';
 let fUnit='',fLine='',fAO='',fStyle='',fColor='',fDate='';
@@ -472,15 +486,28 @@ let loadStart=0;
 function csvUrl(sheet){
   return `https://docs.google.com/spreadsheets/d/${CFG.SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheet)}`;
 }
-async function fetchCSV(name, pct){
+async function fetchCSV(name, pct, skipRows=1){
   setProgress(pct, `Loading ${name}...`);
   const res = await fetch(csvUrl(name));
   if(!res.ok) throw new Error(`Sheet "${name}" fetch failed (${res.status}). Check SHEET_ID and Publish to Web.`);
   const text = await res.text();
   if(text.includes('Moved Temporarily')||text.includes('Sign in'))
     throw new Error(`Sheet "${name}" not published. Go to File → Share → Publish to Web → CSV.`);
-  const r = Papa.parse(text, {header:true, skipEmptyLines:true, dynamicTyping:false});
-  return r.data.filter(row=>Object.values(row).some(v=>v!==null&&v!==''));
+  // Parse all rows first
+  const parsed = Papa.parse(text, {header:false, skipEmptyLines:false});
+  const allRows = parsed.data;
+  // skipRows: how many rows before the header row (0-indexed)
+  // e.g. skipRows=2 means headers are at index 2 (row 3)
+  if(allRows.length <= skipRows) return [];
+  const headers = allRows[skipRows].map(h=>String(h||'').trim());
+  const dataRows = allRows.slice(skipRows+1);
+  return dataRows
+    .map(row => {
+      const obj = {};
+      headers.forEach((h,i) => { if(h) obj[h] = row[i] !== undefined ? String(row[i]).trim() : ''; });
+      return obj;
+    })
+    .filter(row => Object.values(row).some(v=>v!==null&&v!==''&&v!=='0'));
 }
 function setProgress(pct, msg){
   document.getElementById('bootFill').style.width = pct+'%';
@@ -504,18 +531,20 @@ async function loadAll(){
 
   try {
     // Fetch all sheets in parallel for speed
-    const [hourly, fin, lmap, qi, ao, defm] = await Promise.all([
-      fetchCSV(CFG.SHEETS.HOURLY,   20),
-      fetchCSV(CFG.SHEETS.FINISHING,40),
-      fetchCSV(CFG.SHEETS.LINE_MAP, 55),
-      fetchCSV(CFG.SHEETS.QUALITY,  65),
-      fetchCSV(CFG.SHEETS.AO,       75),
-      fetchCSV(CFG.SHEETS.DEFECT,   85),
+    const [hourly, fin, lmap, qi, ao, defm, deflog] = await Promise.all([
+      fetchCSV(CFG.SHEETS.HOURLY,      20, 2),  // row 3 = headers (skip 2 rows)
+      fetchCSV(CFG.SHEETS.FINISHING,   40, 1),  // row 2 = headers (skip 1 row)
+      fetchCSV(CFG.SHEETS.LINE_MAP,    55, 1),
+      fetchCSV(CFG.SHEETS.QUALITY,     65, 1),
+      fetchCSV(CFG.SHEETS.AO,         75, 1),
+      fetchCSV(CFG.SHEETS.DEFECT,      82, 1),
+      fetchCSV(CFG.SHEETS.DEFECT_LOG,  90, 1),
     ]);
 
-    RAW=hourly; FIN=fin; LMAP=lmap; QI=qi; AO=ao; DEFMASTER=defm;
+    RAW=hourly; FIN=fin; LMAP=lmap; QI=qi; AO=ao; DEFMASTER=defm; DEFLOG=deflog;
 
-    if(RAW.length===0) throw new Error('Hourly_Quality_Data sheet is empty. Please add data via AppSheet.');
+    if(RAW.length===0) throw new Error('Hourly_Quality_Data sheet is empty. Please add data via AppSheet first.');
+    console.log(`✅ Loaded: ${RAW.length} hourly rows, ${DEFLOG.length} defect logs, ${FIN.length} finishing rows`);
 
     setProgress(95,'Rendering...');
 
@@ -529,7 +558,7 @@ async function loadAll(){
     const elapsed = ((performance.now()-loadStart)/1000).toFixed(1);
     document.getElementById('tbSpeed').textContent = `⚡ ${elapsed}s`;
     document.getElementById('tbTime').textContent = new Date().toLocaleTimeString();
-    document.getElementById('fSheet').textContent = `Sheet: ${CFG.SHEET_ID.substring(0,16)}... · ${RAW.length} rows`;
+    document.getElementById('fSheet').textContent = `Sheet: ${CFG.SHEET_ID.substring(0,16)}... · ${RAW.length} hourly rows · ${DEFLOG.length} defect logs · ${FIN.length} finishing rows`;
 
     setProgress(100,'Ready');
 
@@ -559,7 +588,7 @@ function populateFilters(){
   const l=[...new Set(RAW.map(r=>r.Line_No||'').filter(Boolean))].sort();
   const a=[...new Set(RAW.map(r=>r.AO_Number||'').filter(Boolean))].sort();
   const s=[...new Set(RAW.map(r=>r.Style_No||'').filter(Boolean))].sort();
-  const c=[...new Set(RAW.map(r=>r.color||r.Color||'').filter(Boolean))].sort();
+  const c=[...new Set(RAW.map(r=>r.Color||r.color||'').filter(Boolean))].sort();
   const d=[...new Set(RAW.map(r=>String(r.Date||'').substring(0,10)).filter(Boolean))].sort().reverse();
   fillSel('fUnit',u,'All Units');
   fillSel('fLine',l,'All Lines');
@@ -594,7 +623,7 @@ function applyF(){
     if(fLine  && String(r.Line_No||'')!==fLine)  return false;
     if(fAO    && String(r.AO_Number||'')!==fAO)  return false;
     if(fStyle && String(r.Style_No||'')!==fStyle)return false;
-    if(fColor && String(r.color||r.Color||'')!==fColor) return false;
+    if(fColor && String(r.Color||r.color||'')!==fColor) return false;
     if(fDate  && String(r.Date||'').substring(0,10)!==fDate) return false;
     return true;
   });
@@ -669,7 +698,7 @@ function renderAll(){
 // ══════════════════════════════════════════════════════════════════
 function renderKPIs(){
   const totChk  =sumF(FILT,'Quality_Checked');
-  const totDef  =sumF(FILT,'Defectives_gmts');
+  const totDef  =sumF(FILT,'Defectives_gmts');  // total defective garments
   const totProdT=sumF(FILT,'Prod_Target_Hr');
   const totProdA=sumF(FILT,'Prod_Actual');
   const maxBal  =Math.max(0,...FILT.map(r=>n(r.Table_Balance_Prev)));
@@ -677,10 +706,10 @@ function renderKPIs(){
   const dhu     =totChk >0?totDef /totChk *100:0;
   const eff     =totProdT>0?totProdA/totProdT*100:0;
 
-  // Finishing DHU
+  // Finishing DHU (handle Unit_N9 typo in sheet)
   let finRows=FIN;
   if(fAO)  finRows=finRows.filter(r=>String(r.AO_Number||'')===fAO);
-  if(fUnit)finRows=finRows.filter(r=>String(r.Unit_No||'')===fUnit);
+  if(fUnit)finRows=finRows.filter(r=>String(r.Unit_No||r.Unit_N9||'')===fUnit);
   const finInsp=sumF(finRows,'Inspected_Qty');
   const finDef =sumF(finRows,'Defectives_gmts');
   const finDHU =finInsp>0?finDef/finInsp*100:0;
@@ -826,18 +855,24 @@ function renderLineCards(){
 // ══════════════════════════════════════════════════════════════════
 function renderPareto(){
   const defMap={};
-  FILT.forEach(r=>{
-    const parsed=parseDefects(r['Defect_Tyep_&_Qty']||r['Defect_Type_&_Qty']||'');
-    Object.entries(parsed).forEach(([k,v])=>{
-      const clean=k.trim();
-      if(clean) defMap[clean]=(defMap[clean]||0)+v;
-    });
-    // Also count from Defectives_gmts if no defect types
-    const defQ=n(r.Defectives_gmts);
-    if(defQ>0&&Object.keys(parsed).length===0){
-      defMap['Unspecified']=(defMap['Unspecified']||0)+defQ;
-    }
+  // ✅ Use Defect_Log (child table) — each defect is a separate row
+  let logRows = DEFLOG;
+  if(fLine) logRows=logRows.filter(r=>String(r.Line_No||'')===fLine);
+  if(fDate) logRows=logRows.filter(r=>String(r.Date||'').substring(0,10)===fDate);
+
+  logRows.forEach(r=>{
+    const name=String(r.Defect_Name||'').trim();
+    const qty=n(r.Defect_Qty)||1;
+    if(name) defMap[name]=(defMap[name]||0)+qty;
   });
+
+  // Fallback: if no defect log data, use Defectives_gmts from hourly
+  if(!Object.keys(defMap).length){
+    FILT.forEach(r=>{
+      const defQ=n(r.Defectives_gmts);
+      if(defQ>0) defMap['Unspecified']=(defMap['Unspecified']||0)+defQ;
+    });
+  }
 
   const sorted=Object.entries(defMap).sort((a,b)=>b[1]-a[1]).slice(0,8);
   kill('cPareto');
@@ -978,16 +1013,31 @@ function renderStyle(){
 function renderDefectCat(){
   // Build category lookup from Defect_Master
   const catMap={};
-  DEFMASTER.forEach(r=>{if(r.Defect_Name) catMap[r.Defect_Name]=(r.Category||'Minor');});
+  DEFMASTER.forEach(r=>{
+    const name=String(r.Defect_Name||'').trim();
+    if(name) catMap[name]=String(r.Category||'Minor').trim();
+  });
 
   const cats={Major:0,Critical:0,Minor:0};
-  FILT.forEach(r=>{
-    const parsed=parseDefects(r['Defect_Tyep_&_Qty']||r['Defect_Type_&_Qty']||'');
-    Object.entries(parsed).forEach(([name,qty])=>{
-      const cat=catMap[name.trim()]||'Minor';
-      cats[cat]=(cats[cat]||0)+qty;
-    });
+
+  // ✅ Use Defect_Log for category breakdown
+  let logRows=DEFLOG;
+  if(fLine) logRows=logRows.filter(r=>String(r.Line_No||'')===fLine);
+  if(fDate) logRows=logRows.filter(r=>String(r.Date||'').substring(0,10)===fDate);
+
+  logRows.forEach(r=>{
+    const name=String(r.Defect_Name||'').trim();
+    const qty=n(r.Defect_Qty)||1;
+    // Use category from Defect_Log directly, or fallback to Defect_Master
+    const cat=String(r.Defect_Category||catMap[name]||'Minor').trim();
+    const key=cat.charAt(0).toUpperCase()+cat.slice(1).toLowerCase();
+    cats[key]=(cats[key]||0)+qty;
   });
+
+  // Fallback
+  if(!Object.values(cats).some(v=>v>0)){
+    FILT.forEach(r=>{cats.Major+=(n(r.Defectives_gmts)||0);});
+  }
   const tot=Object.values(cats).reduce((a,b)=>a+b,0);
   kill('cDefCat');
   const el=document.getElementById('cDefCat');
@@ -1145,13 +1195,16 @@ function renderFinishing(){
   // Finishing comparison chart
   let finRows=FIN;
   if(fAO)  finRows=finRows.filter(r=>String(r.AO_Number||'')===fAO);
-  if(fUnit)finRows=finRows.filter(r=>String(r.Unit_No||'')===fUnit);
+  if(fUnit)finRows=finRows.filter(r=>String(r.Unit_No||r.Unit_N9||'')===fUnit);
+  if(fLine)finRows=finRows.filter(r=>String(r.Line_No||'')===fLine);
 
   const aoFinMap={};
   finRows.forEach(r=>{
     const ao=r.AO_Number||'';
     if(!ao) return;
-    if(!aoFinMap[ao]){aoFinMap[ao]={insp:0,def:0,style:r.Style_No||'',color:r.Color||r.color||'',unit:r.Unit_No||''};}
+    // Handle Unit_N9 typo in sheet
+    const unit=r.Unit_No||r.Unit_N9||'';
+    if(!aoFinMap[ao]){aoFinMap[ao]={insp:0,def:0,style:r.Style_No||'',color:r.Color||r.color||'',unit,line:r.Line_No||''};}
     aoFinMap[ao].insp+=n(r.Inspected_Qty);
     aoFinMap[ao].def +=n(r.Defectives_gmts);
   });
