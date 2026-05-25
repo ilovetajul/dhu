@@ -438,7 +438,7 @@ body.tv-mode .cc{border-radius:6px}
 // ⚙️  CONFIG — তোমার Google Sheet ID এখানে বসাও
 // ══════════════════════════════════════════════════════════════════
 const CFG = {
-  SHEET_ID: "1ZyuZc1XRULozJxcaYDW-PiH3MSVt6FcFj3l7l5Y9fMM",
+  SHEET_ID: "YOUR_GOOGLE_SHEET_ID_HERE",
 
   // তোমার Google Sheet-এর Sheet নামগুলো হুবহু এই রকম থাকতে হবে
   SHEETS: {
@@ -486,6 +486,44 @@ let loadStart=0;
 function csvUrl(sheet){
   return `https://docs.google.com/spreadsheets/d/${CFG.SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheet)}`;
 }
+// ── Column name cleaner ──────────────────────────────────────────
+// Google Sheet-এ group headers like "📦 PRODUCTION Prod_Target_Hr"
+// আসল column নাম হলো শেষের word/phrase — এটা extract করে
+function cleanColName(raw){
+  const s = String(raw||'').trim();
+  if(!s) return '';
+
+  // Known mappings — emoji+group text → real column name
+  const MAP = {
+    'Row_ID':           'Row_ID',
+    'Hour_Slot':        'Hour_Slot',
+    'Prod_Target_Hr':   'Prod_Target_Hr',
+    'Quality_Checked':  'Quality_Checked',
+    'Remarks':          'Remarks',
+    'DHU%':             'DHU%',
+  };
+
+  // Check if any known key is contained in the header
+  for(const [key, val] of Object.entries(MAP)){
+    if(s.includes(key)) return val;
+  }
+
+  // Generic: remove emoji and leading group text
+  // "⏰ TIME & LOCATION Hour_Slot" → "Hour_Slot"
+  // Strategy: take the last "word" that looks like a column name (contains _ or starts uppercase)
+  const noEmoji = s.replace(/[\u{1F300}-\u{1FFFF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[⏰📦✅🧵📝🔑]/gu, '').trim();
+  // Split by spaces, find last snake_case or CamelCase token
+  const parts = noEmoji.split(/\s+/);
+  for(let i = parts.length-1; i >= 0; i--){
+    const p = parts[i].trim();
+    if(p && (p.includes('_') || /^[A-Z]/.test(p) || /^[a-z]+[A-Z]/.test(p))){
+      return p;
+    }
+  }
+  // Fallback: return cleaned string
+  return noEmoji.replace(/[^a-zA-Z0-9_%]/g,'_').replace(/_+/g,'_').replace(/^_|_$/g,'');
+}
+
 async function fetchCSV(name, pct, skipRows=1){
   setProgress(pct, `Loading ${name}...`);
   const res = await fetch(csvUrl(name));
@@ -493,21 +531,25 @@ async function fetchCSV(name, pct, skipRows=1){
   const text = await res.text();
   if(text.includes('Moved Temporarily')||text.includes('Sign in'))
     throw new Error(`Sheet "${name}" not published. Go to File → Share → Publish to Web → CSV.`);
-  // Parse all rows first
+
   const parsed = Papa.parse(text, {header:false, skipEmptyLines:false});
   const allRows = parsed.data;
-  // skipRows: how many rows before the header row (0-indexed)
-  // e.g. skipRows=2 means headers are at index 2 (row 3)
   if(allRows.length <= skipRows) return [];
-  const headers = allRows[skipRows].map(h=>String(h||'').trim());
+
+  // ✅ Clean column names — remove emoji and group text prefixes
+  const rawHeaders = allRows[skipRows];
+  const headers = rawHeaders.map(h => cleanColName(h));
+
   const dataRows = allRows.slice(skipRows+1);
   return dataRows
     .map(row => {
       const obj = {};
-      headers.forEach((h,i) => { if(h) obj[h] = row[i] !== undefined ? String(row[i]).trim() : ''; });
+      headers.forEach((h,i) => {
+        if(h) obj[h] = row[i] !== undefined ? String(row[i]).trim() : '';
+      });
       return obj;
     })
-    .filter(row => Object.values(row).some(v=>v!==null&&v!==''&&v!=='0'));
+    .filter(row => Object.values(row).some(v => v !== null && v !== '' && v !== '0'));
 }
 function setProgress(pct, msg){
   document.getElementById('bootFill').style.width = pct+'%';
@@ -532,16 +574,24 @@ async function loadAll(){
   try {
     // Fetch all sheets in parallel for speed
     const [hourly, fin, lmap, qi, ao, defm, deflog] = await Promise.all([
-      fetchCSV(CFG.SHEETS.HOURLY,      20, 2),  // row 3 = headers (skip 2 rows)
-      fetchCSV(CFG.SHEETS.FINISHING,   40, 1),  // row 2 = headers (skip 1 row)
-      fetchCSV(CFG.SHEETS.LINE_MAP,    55, 1),
-      fetchCSV(CFG.SHEETS.QUALITY,     65, 1),
-      fetchCSV(CFG.SHEETS.AO,         75, 1),
-      fetchCSV(CFG.SHEETS.DEFECT,      82, 1),
-      fetchCSV(CFG.SHEETS.DEFECT_LOG,  90, 1),
+      fetchCSV(CFG.SHEETS.HOURLY,      20, 0),  // row 1 = headers (no skip)
+      fetchCSV(CFG.SHEETS.FINISHING,   40, 0),  // row 1 = headers
+      fetchCSV(CFG.SHEETS.LINE_MAP,    55, 0),
+      fetchCSV(CFG.SHEETS.QUALITY,     65, 0),
+      fetchCSV(CFG.SHEETS.AO,         75, 0),
+      fetchCSV(CFG.SHEETS.DEFECT,      82, 0),
+      fetchCSV(CFG.SHEETS.DEFECT_LOG,  90, 0),
     ]);
 
     RAW=hourly; FIN=fin; LMAP=lmap; QI=qi; AO=ao; DEFMASTER=defm; DEFLOG=deflog;
+
+    // Debug: log first row column names to verify cleaning worked
+    if(RAW.length>0){
+      console.log('✅ Hourly columns:', Object.keys(RAW[0]));
+      console.log('✅ Sample row:', RAW[0]);
+    }
+    if(FIN.length>0) console.log('✅ Finishing columns:', Object.keys(FIN[0]));
+    if(LMAP.length>0) console.log('✅ Line_Mapping columns:', Object.keys(LMAP[0]));
 
     if(RAW.length===0) throw new Error('Hourly_Quality_Data sheet is empty. Please add data via AppSheet first.');
     console.log(`✅ Loaded: ${RAW.length} hourly rows, ${DEFLOG.length} defect logs, ${FIN.length} finishing rows`);
